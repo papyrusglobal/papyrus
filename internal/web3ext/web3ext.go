@@ -21,6 +21,7 @@ var Modules = map[string]string{
 	"admin":      Admin_JS,
 	"chequebook": Chequebook_JS,
 	"clique":     Clique_JS,
+	"papyrus":    Papyrus_JS,
 	"ethash":     Ethash_JS,
 	"debug":      Debug_JS,
 	"eth":        Eth_JS,
@@ -110,6 +111,57 @@ web3._extend({
 		new web3._extend.Property({
 			name: 'proposals',
 			getter: 'clique_proposals'
+		}),
+	]
+});
+`
+
+const Papyrus_JS = `
+web3._extend({
+	property: 'papyrus',
+	methods: [
+		new web3._extend.Method({
+			name: 'getSnapshot',
+			call: 'papyrus_getSnapshot',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getSnapshotAtHash',
+			call: 'papyrus_getSnapshotAtHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'getSigners',
+			call: 'papyrus_getSigners',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getSignersAtHash',
+			call: 'papyrus_getSignersAtHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'propose',
+			call: 'papyrus_propose',
+			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'discard',
+			call: 'papyrus_discard',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'debug',
+			call: 'papyrus_debug',
+			params: 1
+		}),
+	],
+	properties: [
+		new web3._extend.Property({
+			name: 'proposals',
+			getter: 'papyrus_proposals'
 		}),
 	]
 });
