@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/papyrus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -224,6 +225,8 @@ func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainCo
 	// If proof-of-authority is requested, set it up
 	if chainConfig.Clique != nil {
 		return clique.New(chainConfig.Clique, db)
+	} else if chainConfig.Papyrus != nil {
+		return papyrus.New(chainConfig.Papyrus, db)
 	}
 	// Otherwise assume proof-of-work
 	switch config.PowMode {
@@ -384,6 +387,8 @@ func (s *Ethereum) shouldPreserve(block *types.Block) bool {
 	// network is stuck.
 	if _, ok := s.engine.(*clique.Clique); ok {
 		return false
+	} else if _, ok := s.engine.(*papyrus.Papyrus); ok {
+		return false
 	}
 	return s.isLocalBlock(block)
 }
@@ -433,6 +438,14 @@ func (s *Ethereum) StartMining(threads int) error {
 				return fmt.Errorf("signer missing: %v", err)
 			}
 			clique.Authorize(eb, wallet.SignHash)
+		}
+		if papyrus, ok := s.engine.(*papyrus.Papyrus); ok {
+			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
+			if wallet == nil || err != nil {
+				log.Error("Etherbase account unavailable locally", "err", err)
+				return fmt.Errorf("signer missing: %v", err)
+			}
+			papyrus.Authorize(eb, wallet.SignHash)
 		}
 		// If mining is started, we can disable the transaction rejection mechanism
 		// introduced to speed sync times.
