@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
@@ -616,7 +617,8 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
 	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		return ErrInsufficientFunds
+		debug.PrintStack()
+		//return ErrInsufficientFunds
 	}
 	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
 	if err != nil {
@@ -964,14 +966,14 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			pool.priced.Removed()
 		}
 		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
-		for _, tx := range drops {
-			hash := tx.Hash()
-			log.Trace("Removed unpayable queued transaction", "hash", hash)
-			pool.all.Remove(hash)
-			pool.priced.Removed()
-			queuedNofundsCounter.Inc(1)
-		}
+		// drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		// for _, tx := range drops {
+		//	hash := tx.Hash()
+		//	log.Trace("Removed unpayable queued transaction", "hash", hash)
+		//	pool.all.Remove(hash)
+		//	pool.priced.Removed()
+		//	queuedNofundsCounter.Inc(1)
+		// }
 		// Gather all executable transactions and promote them
 		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {
 			hash := tx.Hash()
@@ -1128,19 +1130,19 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.priced.Removed()
 		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
-		for _, tx := range drops {
-			hash := tx.Hash()
-			log.Trace("Removed unpayable pending transaction", "hash", hash)
-			pool.all.Remove(hash)
-			pool.priced.Removed()
-			pendingNofundsCounter.Inc(1)
-		}
-		for _, tx := range invalids {
-			hash := tx.Hash()
-			log.Trace("Demoting pending transaction", "hash", hash)
-			pool.enqueueTx(hash, tx)
-		}
+		// drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		// for _, tx := range drops {
+		//	hash := tx.Hash()
+		//	log.Trace("Removed unpayable pending transaction", "hash", hash)
+		//	pool.all.Remove(hash)
+		//	pool.priced.Removed()
+		//	pendingNofundsCounter.Inc(1)
+		// }
+		// for _, tx := range invalids {
+		//	hash := tx.Hash()
+		//	log.Trace("Demoting pending transaction", "hash", hash)
+		//	pool.enqueueTx(hash, tx)
+		// }
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {
 			for _, tx := range list.Cap(0) {
