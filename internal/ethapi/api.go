@@ -685,23 +685,6 @@ type CallArgs struct {
 	Data     hexutil.Bytes   `json:"data"`
 }
 
-func (s *PublicBlockChainAPI) checkStaked(ctx context.Context, args CallArgs) bool {
-	papyrus := common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
-	disposition := make([]byte, 64)
-	copy(disposition[12:32], args.From[:])
-	hasher := sha3.NewKeccak256()
-	hasher.Write(disposition)
-	hash := hex.EncodeToString(hasher.Sum(nil))
-	status, err := s.GetStorageAt(ctx, papyrus, hash, rpc.LatestBlockNumber)
-	if err != nil {
-		log.Warn("!!!! Tx", "error", err)
-		return false
-	}
-	unmetered := status[len(status)-1]&1 == 1
-	log.Warn("!!!!! Tx", "hash", hash, "status", status, "unmetered", unmetered, "args", args)
-	return unmetered
-}
-
 func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr rpc.BlockNumber, timeout time.Duration) ([]byte, uint64, bool, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
@@ -723,15 +706,12 @@ func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr
 	if gas == 0 {
 		gas = math.MaxUint64 / 2
 	}
-	if s.checkStaked(ctx, args) {
-		gasPrice = new(big.Int).SetUint64(0)
-	} else if gasPrice.Sign() == 0 {
+	if gasPrice.Sign() == 0 {
 		gasPrice = new(big.Int).SetUint64(defaultGasPrice)
 	}
 
 	// Create new call message
 	msg := types.NewMessage(addr, args.To, 0, args.Value.ToInt(), gas, gasPrice, args.Data, false)
-	log.Warn("Tx params", "msg", msg)
 
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
@@ -1325,6 +1305,28 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	return submitTransaction(ctx, s.b, signed)
 }
 
+func (s *PublicTransactionPoolAPI) checkStaked(ctx context.Context, tx *types.Transaction) bool {
+	papyrus := common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
+	if from := tx.To(); from != nil && *from == papyrus {
+		log.Warn("!!!!! Papyrus tx allowed")
+		return true
+	}
+	disposition := make([]byte, 64)
+	sender, _ := types.Sender(types.HomesteadSigner{}, tx)
+	copy(disposition[12:32], sender[:])
+	hasher := sha3.NewKeccak256()
+	hasher.Write(disposition)
+	hash := hex.EncodeToString(hasher.Sum(nil))
+	status, err := NewPublicBlockChainAPI(s.b).GetStorageAt(ctx, papyrus, hash, rpc.LatestBlockNumber)
+	if err != nil {
+		log.Warn("!!!! Tx", "error", err)
+		return false
+	}
+	unmetered := status[len(status)-1]&1 == 1
+	log.Warn("!!!!! Tx", "hash", hash, "status", status, "unmetered", unmetered)
+	return unmetered
+}
+
 // SendRawTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error) {
@@ -1332,6 +1334,7 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encod
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
+	s.checkStaked(ctx, tx)
 	return submitTransaction(ctx, s.b, tx)
 }
 
