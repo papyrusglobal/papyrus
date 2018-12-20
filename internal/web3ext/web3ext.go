@@ -101,11 +101,6 @@ web3._extend({
 			call: 'clique_discard',
 			params: 1
 		}),
-		new web3._extend.Method({
-			name: 'debug',
-			call: 'clique_debug',
-			params: 1
-		}),
 	],
 	properties: [
 		new web3._extend.Property({

@@ -117,8 +117,3 @@ func (api *API) Discard(address common.Address) {
 
 	delete(api.clique.proposals, address)
 }
-
-// Debug a test method.
-func (api *API) Debug(val int) string {
-	return "hello world";
-}
