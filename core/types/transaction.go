@@ -36,7 +36,9 @@ var (
 )
 
 type Transaction struct {
-	data txdata
+	data      txdata
+	unmetered bool
+
 	// caches
 	hash atomic.Value
 	size atomic.Value
@@ -102,6 +104,10 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 	}
 
 	return &Transaction{data: d}
+}
+
+func (tx *Transaction) SetUnmetered(val bool) {
+	tx.unmetered = val
 }
 
 // ChainId returns which chain id this transaction was signed for (if at all)
