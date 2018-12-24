@@ -37,7 +37,7 @@ import (
 
 const (
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
-	chainHeadChanSize = 10
+	chainHeadChanSize = 100
 )
 
 var (
@@ -148,10 +148,10 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 16,
-	GlobalSlots:  4096,
-	AccountQueue: 64,
-	GlobalQueue:  1024,
+	AccountSlots: 8192,
+	GlobalSlots:  131072,
+	AccountQueue: 4096,
+	GlobalQueue:  32768,
 
 	Lifetime: 3 * time.Hour,
 }
@@ -188,6 +188,7 @@ type TxPool struct {
 	chain        blockChain
 	gasPrice     *big.Int
 	txFeed       event.Feed
+	txFeedBuf    chan *types.Transaction
 	scope        event.SubscriptionScope
 	chainHeadCh  chan ChainHeadEvent
 	chainHeadSub event.Subscription
@@ -230,6 +231,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 		all:         newTxLookup(),
 		chainHeadCh: make(chan ChainHeadEvent, chainHeadChanSize),
 		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
+		txFeedBuf:   make(chan *types.Transaction, config.GlobalSlots/4),
 	}
 	pool.locals = newAccountSet(pool.signer)
 	for _, addr := range config.Locals {
@@ -256,6 +258,9 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 	// Start the event loop and return
 	pool.wg.Add(1)
 	go pool.loop()
+
+	pool.wg.Add(1)
+	go pool.feedLoop()
 
 	return pool
 }
@@ -339,6 +344,41 @@ func (pool *TxPool) loop() {
 				pool.mu.Unlock()
 			}
 		}
+	}
+}
+
+// feedLoop continuously sends batches of txs from the txFeedBuf to the txFeed.
+func (pool *TxPool) feedLoop() {
+	defer pool.wg.Done()
+
+	const batchSize = 1000
+	for {
+		select {
+		case <-pool.chainHeadSub.Err():
+			return
+		case tx := <-pool.txFeedBuf:
+			var event NewTxsEvent
+			event.Txs = append(event.Txs, tx)
+			for i := 1; i < batchSize; i++ {
+				select {
+				case tx := <-pool.txFeedBuf:
+					event.Txs = append(event.Txs, tx)
+				default:
+					break
+				}
+			}
+			pool.txFeed.Send(event)
+		}
+	}
+}
+
+// feedSend queues tx to eventually be sent on the txFeed.
+func (pool *TxPool) feedSend(tx *types.Transaction) {
+	select {
+	case pool.txFeedBuf <- tx:
+		return
+	default:
+		go func() { pool.txFeedBuf <- tx }()
 	}
 }
 
@@ -677,8 +717,8 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.To())
 
 		// We've directly injected a replacement transaction, notify subsystems
-		go pool.txFeed.Send(NewTxsEvent{types.Transactions{tx}})
-
+		//go pool.txFeed.Send(NewTxsEvent{types.Transactions{tx}})
+		pool.feedSend(tx)
 		return old != nil, nil
 	}
 	// New transaction isn't replacing a pending one, push into queue
@@ -931,7 +971,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 // invalidated transactions (low nonce, low balance) are deleted.
 func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 	// Track the promoted transactions to broadcast them at once
-	var promoted []*types.Transaction
+	// var promoted []*types.Transaction
 
 	// Gather all the accounts potentially needing updates
 	if accounts == nil {
@@ -967,7 +1007,8 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			hash := tx.Hash()
 			if pool.promoteTx(addr, hash, tx) {
 				log.Trace("Promoting queued transaction", "hash", hash)
-				promoted = append(promoted, tx)
+				pool.feedSend(tx)
+				//promoted = append(promoted, tx)
 			}
 		}
 		// Drop all transactions over the allowed limit
@@ -986,9 +1027,9 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		}
 	}
 	// Notify subsystem for new promoted transactions.
-	if len(promoted) > 0 {
-		go pool.txFeed.Send(NewTxsEvent{promoted})
-	}
+	//if len(promoted) > 0 {
+	//	go pool.txFeed.Send(NewTxsEvent{promoted})
+	//}
 	// If the pending limit is overflown, start equalizing allowances
 	pending := uint64(0)
 	for _, list := range pool.pending {
