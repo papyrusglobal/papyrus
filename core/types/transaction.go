@@ -106,6 +106,10 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 	return &Transaction{data: d}
 }
 
+func (tx *Transaction) Unmetered() bool {
+	return tx.unmetered
+}
+
 func (tx *Transaction) SetUnmetered(val bool) {
 	tx.unmetered = val
 }
@@ -231,6 +235,7 @@ func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 		to:         tx.data.Recipient,
 		amount:     tx.data.Amount,
 		data:       tx.data.Payload,
+		unmetered:  tx.Unmetered(),
 		checkNonce: true,
 	}
 
@@ -397,6 +402,7 @@ type Message struct {
 	gasLimit   uint64
 	gasPrice   *big.Int
 	data       []byte
+	unmetered  bool
 	checkNonce bool
 }
 
@@ -421,3 +427,4 @@ func (m Message) Gas() uint64          { return m.gasLimit }
 func (m Message) Nonce() uint64        { return m.nonce }
 func (m Message) Data() []byte         { return m.data }
 func (m Message) CheckNonce() bool     { return m.checkNonce }
+func (m Message) Unmetered() bool      { return m.unmetered }
