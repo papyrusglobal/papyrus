@@ -17,6 +17,8 @@
 package core
 
 import (
+	"encoding/hex"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
@@ -24,7 +26,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"golang.org/x/crypto/sha3"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -44,6 +48,24 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 		bc:     bc,
 		engine: engine,
 	}
+}
+
+func checkStaked(tx *types.Transaction, state *state.StateDB) bool {
+	papyrus := common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
+	if from := tx.To(); from != nil && *from == papyrus {
+		log.Warn("/// Papyrus tx allowed")
+		return true
+	}
+	disposition := make([]byte, 64)
+	sender, _ := types.Sender(types.HomesteadSigner{}, tx)
+	copy(disposition[12:32], sender[:])
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write(disposition)
+	hash := hex.EncodeToString(hasher.Sum(nil))
+	status := state.GetState(papyrus, common.HexToHash(hash))
+	unmetered := status[len(status)-1]&1 == 1
+	log.Warn("/// checkStaked", "status", hex.EncodeToString(status[:]), "unmetered", unmetered)
+	return unmetered
 }
 
 // Process processes the state changes according to the Ethereum rules by running
@@ -67,7 +89,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		tx.SetUnmetered(checkStaked(tx))
+		tx.SetUnmetered(checkStaked(tx, statedb))
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {

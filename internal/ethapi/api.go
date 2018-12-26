@@ -19,7 +19,6 @@ package ethapi
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -38,7 +37,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
@@ -1338,28 +1336,6 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	return submitTransaction(ctx, s.b, signed)
 }
 
-func (s *PublicTransactionPoolAPI) checkStaked(ctx context.Context, tx *types.Transaction) bool {
-	papyrus := common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
-	if from := tx.To(); from != nil && *from == papyrus {
-		log.Warn("!!!!! Papyrus tx allowed")
-		return true
-	}
-	disposition := make([]byte, 64)
-	sender, _ := types.Sender(types.HomesteadSigner{}, tx)
-	copy(disposition[12:32], sender[:])
-	hasher := sha3.NewKeccak256()
-	hasher.Write(disposition)
-	hash := hex.EncodeToString(hasher.Sum(nil))
-	status, err := NewPublicBlockChainAPI(s.b).GetStorageAt(ctx, papyrus, hash, rpc.LatestBlockNumber)
-	if err != nil {
-		log.Warn("!!!! Tx", "error", err)
-		return false
-	}
-	unmetered := status[len(status)-1]&1 == 1
-	log.Warn("!!!!! Tx", "hash", hash, "status", status, "unmetered", unmetered)
-	return unmetered
-}
-
 // SendRawTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error) {
@@ -1367,7 +1343,6 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encod
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
-	s.checkStaked(ctx, tx)
 	return submitTransaction(ctx, s.b, tx)
 }
 
