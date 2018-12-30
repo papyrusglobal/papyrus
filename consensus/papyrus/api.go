@@ -1,10 +1,10 @@
 package papyrus
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/papyrusglobal/papyrus/common"
+	"github.com/papyrusglobal/papyrus/consensus"
+	"github.com/papyrusglobal/papyrus/core/types"
+	"github.com/papyrusglobal/papyrus/rpc"
 )
 
 // API is a user facing RPC API to allow controlling the signer and voting

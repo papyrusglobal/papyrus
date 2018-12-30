@@ -1,18 +1,18 @@
-// Copyright 2017 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2017 The papyrus Authors
+// This file is part of the papyrus library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The papyrus library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The papyrus library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the papyrus library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package clique implements the proof-of-authority consensus engine.
 package clique
@@ -25,20 +25,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/misc"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/papyrusglobal/papyrus/accounts"
+	"github.com/papyrusglobal/papyrus/common"
+	"github.com/papyrusglobal/papyrus/common/hexutil"
+	"github.com/papyrusglobal/papyrus/consensus"
+	"github.com/papyrusglobal/papyrus/consensus/misc"
+	"github.com/papyrusglobal/papyrus/core/state"
+	"github.com/papyrusglobal/papyrus/core/types"
+	"github.com/papyrusglobal/papyrus/crypto"
+	"github.com/papyrusglobal/papyrus/crypto/sha3"
+	"github.com/papyrusglobal/papyrus/ethdb"
+	"github.com/papyrusglobal/papyrus/log"
+	"github.com/papyrusglobal/papyrus/params"
+	"github.com/papyrusglobal/papyrus/rlp"
+	"github.com/papyrusglobal/papyrus/rpc"
 	lru "github.com/hashicorp/golang-lru"
 )
 

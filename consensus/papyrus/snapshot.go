@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/papyrusglobal/papyrus/common"
+	"github.com/papyrusglobal/papyrus/core/types"
+	"github.com/papyrusglobal/papyrus/ethdb"
+	"github.com/papyrusglobal/papyrus/params"
 	lru "github.com/hashicorp/golang-lru"
 )
 

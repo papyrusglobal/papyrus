@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/swarm/api"
-	"github.com/ethereum/go-ethereum/swarm/log"
-	"github.com/ethereum/go-ethereum/swarm/sctx"
-	"github.com/ethereum/go-ethereum/swarm/spancontext"
+	"github.com/papyrusglobal/papyrus/metrics"
+	"github.com/papyrusglobal/papyrus/swarm/api"
+	"github.com/papyrusglobal/papyrus/swarm/log"
+	"github.com/papyrusglobal/papyrus/swarm/sctx"
+	"github.com/papyrusglobal/papyrus/swarm/spancontext"
 	"github.com/pborman/uuid"
 )
 

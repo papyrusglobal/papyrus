@@ -1,18 +1,18 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2015 The papyrus Authors
+// This file is part of the papyrus library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The papyrus library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The papyrus library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the papyrus library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package ethapi implements the general Ethereum API functions.
 package ethapi
@@ -21,17 +21,17 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/papyrusglobal/papyrus/accounts"
+	"github.com/papyrusglobal/papyrus/common"
+	"github.com/papyrusglobal/papyrus/core"
+	"github.com/papyrusglobal/papyrus/core/state"
+	"github.com/papyrusglobal/papyrus/core/types"
+	"github.com/papyrusglobal/papyrus/core/vm"
+	"github.com/papyrusglobal/papyrus/eth/downloader"
+	"github.com/papyrusglobal/papyrus/ethdb"
+	"github.com/papyrusglobal/papyrus/event"
+	"github.com/papyrusglobal/papyrus/params"
+	"github.com/papyrusglobal/papyrus/rpc"
 )
 
 // Backend interface provides the common API services (that are provided by

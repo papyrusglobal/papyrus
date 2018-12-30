@@ -1,18 +1,18 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
+// Copyright 2015 The papyrus Authors
+// This file is part of the papyrus library.
 //
-// The go-ethereum library is free software: you can redistribute it and/or modify
+// The papyrus library is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// The go-ethereum library is distributed in the hope that it will be useful,
+// The papyrus library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU Lesser General Public License for more details.
 //
 // You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+// along with the papyrus library. If not, see <http://www.gnu.org/licenses/>.
 
 package tests
 
@@ -22,19 +22,19 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/papyrusglobal/papyrus/common"
+	"github.com/papyrusglobal/papyrus/common/hexutil"
+	"github.com/papyrusglobal/papyrus/common/math"
+	"github.com/papyrusglobal/papyrus/core"
+	"github.com/papyrusglobal/papyrus/core/state"
+	"github.com/papyrusglobal/papyrus/core/vm"
+	"github.com/papyrusglobal/papyrus/crypto"
+	"github.com/papyrusglobal/papyrus/ethdb"
+	"github.com/papyrusglobal/papyrus/params"
 )
 
 // VMTest checks EVM execution without block or transaction context.
-// See https://github.com/ethereum/tests/wiki/VM-Tests for the test format specification.
+// See https://github.com/papyrusglobal/tests/wiki/VM-Tests for the test format specification.
 type VMTest struct {
 	json vmJSON
 }

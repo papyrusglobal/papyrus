@@ -7,12 +7,12 @@ import (
 	"math/big"
 	"strings"
 
-	ethereum "github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
+	ethereum "github.com/papyrusglobal/papyrus"
+	"github.com/papyrusglobal/papyrus/accounts/abi"
+	"github.com/papyrusglobal/papyrus/accounts/abi/bind"
+	"github.com/papyrusglobal/papyrus/common"
+	"github.com/papyrusglobal/papyrus/core/types"
+	"github.com/papyrusglobal/papyrus/event"
 )
 
 // PublicResolverABI is the input ABI used to generate the binding from.

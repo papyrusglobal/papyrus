@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/swarm/log"
-	"github.com/ethereum/go-ethereum/swarm/pss"
+	"github.com/papyrusglobal/papyrus/common/hexutil"
+	"github.com/papyrusglobal/papyrus/crypto"
+	"github.com/papyrusglobal/papyrus/p2p"
+	"github.com/papyrusglobal/papyrus/rlp"
+	"github.com/papyrusglobal/papyrus/swarm/log"
+	"github.com/papyrusglobal/papyrus/swarm/pss"
 )
 
 const (

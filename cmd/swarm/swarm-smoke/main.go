@@ -1,18 +1,18 @@
-// Copyright 2018 The go-ethereum Authors
-// This file is part of go-ethereum.
+// Copyright 2018 The papyrus Authors
+// This file is part of papyrus.
 //
-// go-ethereum is free software: you can redistribute it and/or modify
+// papyrus is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// go-ethereum is distributed in the hope that it will be useful,
+// papyrus is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
+// along with papyrus. If not, see <http://www.gnu.org/licenses/>.
 
 package main
 
@@ -21,13 +21,13 @@ import (
 	"os"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	gethmetrics "github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/metrics/influxdb"
-	swarmmetrics "github.com/ethereum/go-ethereum/swarm/metrics"
-	"github.com/ethereum/go-ethereum/swarm/tracing"
+	"github.com/papyrusglobal/papyrus/cmd/utils"
+	gethmetrics "github.com/papyrusglobal/papyrus/metrics"
+	"github.com/papyrusglobal/papyrus/metrics/influxdb"
+	swarmmetrics "github.com/papyrusglobal/papyrus/swarm/metrics"
+	"github.com/papyrusglobal/papyrus/swarm/tracing"
 
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/papyrusglobal/papyrus/log"
 
 	cli "gopkg.in/urfave/cli.v1"
 )

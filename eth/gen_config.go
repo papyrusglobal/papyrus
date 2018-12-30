@@ -6,12 +6,12 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/eth/gasprice"
+	"github.com/papyrusglobal/papyrus/common"
+	"github.com/papyrusglobal/papyrus/common/hexutil"
+	"github.com/papyrusglobal/papyrus/consensus/ethash"
+	"github.com/papyrusglobal/papyrus/core"
+	"github.com/papyrusglobal/papyrus/eth/downloader"
+	"github.com/papyrusglobal/papyrus/eth/gasprice"
 )
 
 var _ = (*configMarshaling)(nil)

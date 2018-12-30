@@ -1,18 +1,18 @@
-// Copyright 2017 The go-ethereum Authors
-// This file is part of go-ethereum.
+// Copyright 2017 The papyrus Authors
+// This file is part of papyrus.
 //
-// go-ethereum is free software: you can redistribute it and/or modify
+// papyrus is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// go-ethereum is distributed in the hope that it will be useful,
+// papyrus is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
+// along with papyrus. If not, see <http://www.gnu.org/licenses/>.
 
 package main
 
@@ -33,15 +33,15 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/internal/cmdtest"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/swarm"
-	"github.com/ethereum/go-ethereum/swarm/api"
-	swarmhttp "github.com/ethereum/go-ethereum/swarm/api/http"
+	"github.com/papyrusglobal/papyrus/accounts"
+	"github.com/papyrusglobal/papyrus/accounts/keystore"
+	"github.com/papyrusglobal/papyrus/internal/cmdtest"
+	"github.com/papyrusglobal/papyrus/node"
+	"github.com/papyrusglobal/papyrus/p2p"
+	"github.com/papyrusglobal/papyrus/rpc"
+	"github.com/papyrusglobal/papyrus/swarm"
+	"github.com/papyrusglobal/papyrus/swarm/api"
+	swarmhttp "github.com/papyrusglobal/papyrus/swarm/api/http"
 )
 
 var loglevel = flag.Int("loglevel", 3, "verbosity of logs")
