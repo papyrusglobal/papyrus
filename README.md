@@ -50,6 +50,7 @@ enumerated a few common parameter combos to get you up to speed quickly on how y
 own Geth instance.
 
 ### Full node on the Papyrus test network
+-------------
 
 Prerequisites
 -------------
