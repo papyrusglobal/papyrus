@@ -18,6 +18,7 @@ package core
 
 import (
 	"encoding/hex"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -50,7 +51,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 	}
 }
 
-func checkStaked(tx *types.Transaction, state *state.StateDB) bool {
+func checkStaked(tx *types.Transaction, state *state.StateDB, time *big.Int) bool {
 	papyrus := common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
 	if from := tx.To(); from != nil && *from == papyrus {
 		log.Warn("/// Papyrus tx allowed")
@@ -63,8 +64,13 @@ func checkStaked(tx *types.Transaction, state *state.StateDB) bool {
 	hasher.Write(disposition)
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	status := state.GetState(papyrus, common.HexToHash(hash))
-	unmetered := status[len(status)-1]&1 == 1
-	log.Warn("/// checkStaked", "status", hex.EncodeToString(status[:]), "unmetered", unmetered)
+	mix := status[0]
+	for i := 1; i < len(status); i++ {
+		mix |= status[i]
+	}
+	unmetered := mix != 0
+	log.Warn("/// checkStaked", "status", hex.EncodeToString(status[:]), "time", time,
+		"unmetered", unmetered)
 	return unmetered
 }
 
@@ -89,7 +95,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		tx.SetUnmetered(checkStaked(tx, statedb))
+		tx.SetUnmetered(checkStaked(tx, statedb, block.Header().Time))
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
