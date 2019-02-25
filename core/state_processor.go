@@ -51,26 +51,47 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 	}
 }
 
-func checkStaked(tx *types.Transaction, state *state.StateDB, time *big.Int) bool {
-	papyrus := common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
-	if from := tx.To(); from != nil && *from == papyrus {
-		log.Warn("/// Papyrus tx allowed")
-		return true
+// Address of the Bios contract that keeps staking values.
+var BiosAddress = common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
+
+var limits map[common.Address]uint64 // TODO: move to consensus engine
+
+// GetLimits returns limits mapping.
+func GetLimits() map[common.Address]uint64 {
+	if limits == nil {
+		limits = make(map[common.Address]uint64)
 	}
+	return limits
+}
+
+// GetStaked returns currently staked value by the given address.
+func GetStaked(sender common.Address, state *state.StateDB) common.Hash {
 	disposition := make([]byte, 64)
-	sender, _ := types.Sender(types.HomesteadSigner{}, tx)
 	copy(disposition[12:32], sender[:])
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(disposition)
 	hash := hex.EncodeToString(hasher.Sum(nil))
-	status := state.GetState(papyrus, common.HexToHash(hash))
-	mix := status[0]
-	for i := 1; i < len(status); i++ {
-		mix |= status[i]
+	return state.GetState(BiosAddress, common.HexToHash(hash))
+}
+
+func checkStaked(tx *types.Transaction, state *state.StateDB, header *types.Header) bool {
+	if from := tx.To(); from != nil && *from == BiosAddress {
+		log.Warn("/// Papyrus tx allowed")
+		return true
 	}
-	unmetered := mix != 0
-	log.Warn("/// checkStaked", "status", hex.EncodeToString(status[:]), "time", time,
-		"unmetered", unmetered)
+	sender, _ := types.Sender(types.HomesteadSigner{}, tx)
+	limit := GetLimits()[sender]
+	totalStake := state.GetBalance(BiosAddress)
+	if limit == 0 && totalStake.Sign() == 1 {
+		status := GetStaked(sender, state)
+		stakeAbs := new(big.Int).SetBytes(status[:])
+		stakeGas := new(big.Int).Mul(stakeAbs, big.NewInt(int64(header.GasLimit)))
+		limit = new(big.Int).Div(stakeGas, totalStake).Uint64()
+		log.Warn("/// checkStaked set", "limit", limit, "sender", sender)
+		GetLimits()[sender] = limit
+	}
+	unmetered := limit != 0
+	log.Warn("/// checkStaked", "block", header.Number, "unmetered", unmetered)
 	return unmetered
 }
 
@@ -95,7 +116,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	}
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		tx.SetUnmetered(checkStaked(tx, statedb, block.Header().Time))
+		tx.SetUnmetered(checkStaked(tx, statedb, block.Header()))
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {

@@ -149,8 +149,8 @@ web3._extend({
 			params: 1
 		}),
 		new web3._extend.Method({
-			name: 'debug',
-			call: 'papyrus_debug',
+			name: 'getLimit',
+			call: 'papyrus_getLimit',
 			params: 1
 		}),
 	],

@@ -673,6 +673,15 @@ func (s *PublicBlockChainAPI) GetStorageAt(ctx context.Context, address common.A
 	return res[:], state.Error()
 }
 
+func (s *PublicBlockChainAPI) GetStaked(ctx context.Context, address common.Address) ([]byte, error) {
+	state, _, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
+	if state == nil || err != nil {
+		return nil, err
+	}
+	res := core.GetStaked(address, state)
+	return res[:], state.Error()
+}
+
 // CallArgs represents the arguments for a call.
 type CallArgs struct {
 	From     common.Address  `json:"from"`

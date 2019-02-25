@@ -3,6 +3,7 @@ package papyrus
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -102,7 +103,7 @@ func (api *API) Discard(address common.Address) {
 	delete(api.papyrus.proposals, address)
 }
 
-// Debug a test method.
-func (api *API) Debug(val int) string {
-	return "hello world"
+// GetLimit returns the limit value for the given address.
+func (api *API) GetLimit(address common.Address) uint64 {
+	return core.GetLimits()[address]
 }

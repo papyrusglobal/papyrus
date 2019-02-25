@@ -5275,6 +5275,13 @@ var methods = function () {
         outputFormatter: formatters.outputBigNumberFormatter
     });
 
+    var getStaked = new Method({
+        name: 'getStaked',
+        call: 'eth_getStaked',
+        params: 3,
+        inputFormatter: [null, utils.toHex, formatters.inputDefaultBlockNumberFormatter]
+    });
+
     var getStorageAt = new Method({
         name: 'getStorageAt',
         call: 'eth_getStorageAt',
@@ -5433,6 +5440,7 @@ var methods = function () {
 
     return [
         getBalance,
+        getStaked,
         getStorageAt,
         getCode,
         getBlock,
