@@ -51,18 +51,8 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 	}
 }
 
-// Address of the Bios contract that keeps staking values.
+// BiosAddress - address of the Bios contract that keeps staking values.
 var BiosAddress = common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
-
-var limits map[common.Address]uint64 // TODO: move to consensus engine
-
-// GetLimits returns limits mapping.
-func GetLimits() map[common.Address]uint64 {
-	if limits == nil {
-		limits = make(map[common.Address]uint64)
-	}
-	return limits
-}
 
 // GetStaked returns currently staked value by the given address.
 func GetStaked(sender common.Address, state *state.StateDB) common.Hash {
@@ -80,7 +70,7 @@ func checkStaked(tx *types.Transaction, state *state.StateDB, header *types.Head
 		return true
 	}
 	sender, _ := types.Sender(types.HomesteadSigner{}, tx)
-	limit := GetLimits()[sender]
+	limit := state.GetLimit(sender)
 	totalStake := state.GetBalance(BiosAddress)
 	if limit == 0 && totalStake.Sign() == 1 {
 		status := GetStaked(sender, state)
@@ -88,7 +78,7 @@ func checkStaked(tx *types.Transaction, state *state.StateDB, header *types.Head
 		stakeGas := new(big.Int).Mul(stakeAbs, big.NewInt(int64(header.GasLimit)))
 		limit = new(big.Int).Div(stakeGas, totalStake).Uint64()
 		log.Warn("/// checkStaked set", "limit", limit, "sender", sender)
-		GetLimits()[sender] = limit
+		state.SetLimit(sender, limit)
 	}
 	unmetered := limit != 0
 	log.Warn("/// checkStaked", "block", header.Number, "unmetered", unmetered)

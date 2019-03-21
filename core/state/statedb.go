@@ -221,6 +221,15 @@ func (self *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
+func (self *StateDB) GetLimit(addr common.Address) uint64 {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.Limit()
+	}
+
+	return 0
+}
+
 func (self *StateDB) GetCode(addr common.Address) []byte {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
@@ -343,6 +352,29 @@ func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetNonce(nonce)
+	}
+}
+
+// AddLimit adds amount to the account associated with addr.
+func (self *StateDB) AddLimit(addr common.Address, amount uint64) {
+	stateObject := self.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.AddLimit(amount)
+	}
+}
+
+// SubLimit subtracts amount from the account associated with addr.
+func (self *StateDB) SubLimit(addr common.Address, amount uint64) {
+	stateObject := self.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SubLimit(amount)
+	}
+}
+
+func (self *StateDB) SetLimit(addr common.Address, limit uint64) {
+	stateObject := self.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SetLimit(limit)
 	}
 }
 

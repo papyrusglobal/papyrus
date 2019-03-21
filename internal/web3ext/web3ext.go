@@ -148,11 +148,6 @@ web3._extend({
 			call: 'papyrus_discard',
 			params: 1
 		}),
-		new web3._extend.Method({
-			name: 'getLimit',
-			call: 'papyrus_getLimit',
-			params: 1
-		}),
 	],
 	properties: [
 		new web3._extend.Property({

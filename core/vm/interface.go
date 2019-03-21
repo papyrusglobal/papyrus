@@ -34,6 +34,10 @@ type StateDB interface {
 	GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
 
+	SubLimit(common.Address, uint64)
+	AddLimit(common.Address, uint64)
+	GetLimit(common.Address) uint64
+
 	GetCodeHash(common.Address) common.Hash
 	GetCode(common.Address) []byte
 	SetCode(common.Address, []byte)

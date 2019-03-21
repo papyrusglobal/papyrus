@@ -90,13 +90,14 @@ type stateObject struct {
 
 // empty returns whether the account is considered empty.
 func (s *stateObject) empty() bool {
-	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
+	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash) && s.data.Limit == 0
 }
 
 // Account is the Ethereum consensus representation of accounts.
 // These objects are stored in the main account trie.
 type Account struct {
 	Nonce    uint64
+	Limit    uint64
 	Balance  *big.Int
 	Root     common.Hash // merkle root of the storage trie
 	CodeHash []byte
@@ -363,6 +364,18 @@ func (self *stateObject) setNonce(nonce uint64) {
 	self.data.Nonce = nonce
 }
 
+func (self *stateObject) AddLimit(amount uint64) {
+	self.SetLimit(self.data.Limit + amount)
+}
+
+func (self *stateObject) SubLimit(amount uint64) {
+	self.SetLimit(self.data.Limit - amount)
+}
+
+func (self *stateObject) SetLimit(limit uint64) {
+	self.data.Limit = limit
+}
+
 func (self *stateObject) CodeHash() []byte {
 	return self.data.CodeHash
 }
@@ -373,6 +386,10 @@ func (self *stateObject) Balance() *big.Int {
 
 func (self *stateObject) Nonce() uint64 {
 	return self.data.Nonce
+}
+
+func (self *stateObject) Limit() uint64 {
+	return self.data.Limit
 }
 
 // Never called, but must be present to allow stateObject to be used
