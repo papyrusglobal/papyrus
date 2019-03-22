@@ -169,10 +169,12 @@ func (st *StateTransition) isBios() bool {
 func (st *StateTransition) buyGas() error {
 	/// mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
 	/// if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 && !st.msg.Unmetered() {
-	if st.state.GetLimit(st.msg.From()) < st.msg.Gas() && !st.msg.Unmetered() && !st.isCall() {
+	limit := FetchLimit(st.msg.From(), st.state, st.evm.GasLimit, true)
+	if limit < st.msg.Gas() && !st.msg.Unmetered() && !st.isCall() {
 		return errInsufficientBalanceForGas
 	}
-	log.Warn("/// buyGas running", "tx", st.msg, "limit", st.state.GetLimit(st.msg.From()),
+	log.Warn("/// buyGas running", "from", st.msg.From(), "to", st.msg.To(),
+		"limit", st.state.GetLimit(st.msg.From()),
 		"unmetered", st.msg.Unmetered(), "isCall", st.isCall())
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
@@ -183,7 +185,7 @@ func (st *StateTransition) buyGas() error {
 	/// if !st.msg.Unmetered() {
 	///	st.state.SubBalance(st.msg.From(), mgval)
 	/// }
-	if !st.isCall() && !st.isBios() {
+	if !st.isBios() {
 		log.Warn("/// buyGas taking limit", "from", st.msg.From(), "to", st.msg.To(),
 			"gas", st.msg.Gas(), "limit", st.state.GetLimit(st.msg.From()))
 		st.state.SubLimit(st.msg.From(), st.msg.Gas())
@@ -232,7 +234,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		// error.
 		vmerr error
 	)
-	log.Warn("/// evm", "sender", sender, "to", st.to, "data", st.data, "gas", st.gas)
+	log.Warn("/// evm", "sender", msg.From(), "to", msg.To(), "block", st.evm.BlockNumber,
+		"data", st.data, "gas", st.gas)
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value)
 	} else {
@@ -269,7 +272,7 @@ func (st *StateTransition) refundGas() {
 	/// if !st.msg.Unmetered() {
 	/// remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 	/// st.state.AddBalance(st.msg.From(), remaining)
-	if !st.isCall() && !st.isBios() {
+	if !st.isBios() {
 		st.state.AddLimit(st.msg.From(), st.gas)
 	}
 

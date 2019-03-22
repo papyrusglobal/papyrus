@@ -36,6 +36,7 @@ type StateDB interface {
 
 	SubLimit(common.Address, uint64)
 	AddLimit(common.Address, uint64)
+	SetLimit(common.Address, uint64)
 	GetLimit(common.Address) uint64
 
 	GetCodeHash(common.Address) common.Hash
