@@ -1,0 +1,90 @@
+body {
+    width: 100%;
+    margin: 0;
+    font-family: "Arial";
+}
+.message {
+    width: auto;
+    background-color: yellow;
+    text-align: center;
+    padding: 10px;
+    display: none;
+}
+.info {
+    width: auto;
+    background-color: aqua;
+    text-align: center;
+    padding: 10px;
+    display: none;
+}
+.window {
+    background-color: green;
+    color: white;
+    display: none;
+    padding: 10px;
+    text-align: center;
+    width: auto;
+}
+.window-main {
+    display: inline;
+}
+.window-close {
+    background: red;
+    color: black;
+    cursor: pointer;
+    float: right;
+}
+.container {
+    margin: 10px 5%;
+}
+.pane {
+    padding: 0 10px 0 10px;
+    float: left;
+    width: 50%;
+}
+.pane #tokens-info {
+    display: none;
+}
+.link {
+    cursor: pointer;
+    color: blue;
+    text-decoration: underline;
+}
+.link:hover {
+    text-decoration: none;
+    text-shadow: 1px 1px 1px #555;
+}
+.table {
+    user-select: none;
+    min-width: 270px;
+}
+.table td {
+    border-collapse: separate;
+    border: solid white 1px;
+    border-radius: 5px;
+    width: 35pt;
+    height: 30pt;
+}
+.table div {
+    text-align: center;
+}
+.vertical {
+    transform: rotate(0.25turn);
+}
+.table .pad {
+    border: none;
+}
+.table td:hover:not(.pad), .table .selected:not(.pad) {
+    background-image: url("../img/chip.gif");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+.buttons-area {
+    text-align: center;
+    padding: 10px 0;
+    width: 100%;
+}
+.buttons-area button {
+    min-width: 30%;
+}

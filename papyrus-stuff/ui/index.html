@@ -1,0 +1,35 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+          "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Papyrus controller UI</title>
+    <link rel="stylesheet" href="index.css" charset="utf-8" />
+    <script language="javascript" src="dist/web3.min.js"></script>
+    <script language="javascript" src="abi.js"></script>
+    <script language="javascript" src="index.js"></script>
+  </head>
+  <body onload="init()">
+    <div class="message" id="no-web3-error">
+      No web3 error. Please use Metamask or Mist to play this game.
+    </div>
+
+    <div class="message" id="no-papyrus-network">
+      Your web3 uses #<span id="network-id">unknown</span> network.
+      Please choose Papyrus network in metamask.
+    </div>
+
+    <div class="info" id="tx-info">
+      Transaction is being sent to the network (id=<span id="tx-id"></span>).
+    </div>
+
+    <div class="container">
+      Account: <span id="account">...</span><br/>
+      Balance: <span id="balance">...</span> wei
+      (about <span id="balance_eth">...</span> ether)<br/>
+      Bios contract version: <span id="version">...</span><br/>
+      Stake: <span id="stake">...</span> wei<br/>
+      Limit: <span id="limit">...</span> gas<br/>
+    </div>
+  </body>
+</html>
