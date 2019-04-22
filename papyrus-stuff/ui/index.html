@@ -5,13 +5,15 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Papyrus controller UI</title>
     <link rel="stylesheet" href="index.css" charset="utf-8" />
+    <link rel="icon" type="image/png"
+          href="https://papyrus.global/wp-content/themes/salient/img/favicon.png">
     <script language="javascript" src="dist/web3.min.js"></script>
     <script language="javascript" src="abi.js"></script>
     <script language="javascript" src="index.js"></script>
   </head>
   <body onload="init()">
     <div class="message" id="no-web3-error">
-      No web3 error. Please use Metamask or Mist to play this game.
+      No web3 error. Please use Metamask.
     </div>
 
     <div class="message" id="no-papyrus-network">
@@ -28,8 +30,15 @@
       Balance: <span id="balance">...</span> wei
       (about <span id="balance_eth">...</span> ether)<br/>
       Bios contract version: <span id="version">...</span><br/>
-      Stake: <span id="stake">...</span> wei<br/>
-      Limit: <span id="limit">...</span> gas<br/>
+      All stakes: <span id="all-stakes">...</span> wei<br/>
+      My stake: <span id="stake">...</span> wei<br/>
+      My limit: <span id="limit">...</span> gas<br/>
+      <br/>
+      Use <input id="value" type="text" value="0"></input> wei to
+      <button onclick="onStake()">stake</button> or
+      <button onclick="onUnstake()">unstake</button>.<br/>
+      If you unstaked, after gap time
+      <button onclick="onWithdraw()">withdraw</button> it.
     </div>
   </body>
 </html>
