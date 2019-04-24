@@ -34,6 +34,20 @@ How to convert
     (custom RPC http://148.251.152.112:52545) where you want to transfer your
     PPR tokens from.
 
+3.  If you selected Papyrus network, you need to stake some funds first, if
+    you didn't do it before, for the account you use. To stake, use this
+    controller UI:
+
+    1. Open or refresh the controller UI page
+       (http://head.papyrus.network:8000/controller/). Make sure it shows your
+       account.
+    2. Use value (e.g. 1) and press 'stake' button. Confirm your action with
+       Metamask pop-up.
+    3. After several seconds, the Metamask will notify you that the
+       transaction is complete. After that, refresh the controller page.
+    4. Repeat steps 2-3 one more time (two times in total). This is a
+       workaround and will be fixed soon.
+
 3.  Browse to the bridge at http://head.papyrus.network:3000/. Confirm
     Metamask authentication pop-up.
 
