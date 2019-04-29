@@ -19,6 +19,7 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -44,6 +45,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -704,7 +706,7 @@ func (s *PublicBlockChainAPI) checkStaked(ctx context.Context, args CallArgs) bo
 	papyrus := common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
 	disposition := make([]byte, 64)
 	copy(disposition[12:32], args.From[:])
-	hasher := sha3.NewKeccak256()
+	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(disposition)
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	status, err := s.GetStorageAt(ctx, papyrus, hash, rpc.LatestBlockNumber)
@@ -717,7 +719,7 @@ func (s *PublicBlockChainAPI) checkStaked(ctx context.Context, args CallArgs) bo
 	return unmetered
 }
 
-func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr rpc.BlockNumber, timeout time.Duration) ([]byte, uint64, bool, error) {
+func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr rpc.BlockNumber, timeout time.Duration, globalGasCap *big.Int) ([]byte, uint64, bool, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := s.b.StateAndHeaderByNumber(ctx, blockNr)
@@ -737,6 +739,10 @@ func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr
 	gas := uint64(args.Gas)
 	if gas == 0 {
 		gas = math.MaxUint64 / 2
+	}
+	if globalGasCap != nil && globalGasCap.Uint64() < gas {
+		log.Warn("Caller gas above allowance, capping", "requested", gas, "cap", globalGasCap)
+		gas = globalGasCap.Uint64()
 	}
 	gasPrice := args.GasPrice.ToInt()
 	if s.checkStaked(ctx, args) {

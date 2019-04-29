@@ -4,11 +4,12 @@ let contract;
 let account;
 
 async function init() {
+  console.log(window.web3.currentProvider);
   if (typeof web3 === 'undefined') {
     show('no-web3-error');
     return;
   }
-  web3 = new Web3(web3.currentProvider);
+  web3 = new Web3(window.web3.currentProvider);
   const accounts = await web3.eth.getAccounts();
   account = accounts[0];
   text('account', account);

@@ -30,7 +30,7 @@ $GETH1 --verbosity 5 \
        --unlock 0 \
        --password /dev/null \
        --mine \
-       --ethstats='Local-Papyrus-test-1:papyrus@localhost:3000' \
+       --ethstats='Local-Papyrus-test-1:papyrus@localhost:4000' \
        >log.1 2>&1 &
 
 $GETH2 --verbosity 5 \
@@ -41,7 +41,7 @@ $GETH2 --verbosity 5 \
        --unlock 0 \
        --password /dev/null \
        --mine \
-       --ethstats='Local-Papyrus-test-2:papyrus@localhost:3000' \
+       --ethstats='Local-Papyrus-test-2:papyrus@localhost:4000' \
        >log.2 2>&1 &
 
 $GETH3 --verbosity 5 \
@@ -49,7 +49,7 @@ $GETH3 --verbosity 5 \
        --networkid=323138 \
        --syncmode='full' \
        --nodiscover \
-       --ethstats='Local-Papyrus-test-3:papyrus@localhost:3000' \
+       --ethstats='Local-Papyrus-test-3:papyrus@localhost:4000' \
        >log.3 2>&1 &
 
 $GETH4 --verbosity 5 \
@@ -61,5 +61,5 @@ $GETH4 --verbosity 5 \
        --rpcaddr='0.0.0.0' \
        --rpcport=18545 \
        --rpccorsdomain='*' \
-       --ethstats='Local-Papyrus-test-4:papyrus@localhost:3000' \
+       --ethstats='Local-Papyrus-test-4:papyrus@localhost:4000' \
        >log.4 2>&1 &

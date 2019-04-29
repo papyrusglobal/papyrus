@@ -18,9 +18,9 @@ Setup
 
 1.  Run the ethstats server. You need to do it only once.
 
-        docker run --name=ethstats -d -p 3000:3000 -e WS_SECRET="papyrus" papyrusglobal/netstats:test-latest
+        docker run --name=local-ethstats -d -p 4000:3000 -e WS_SECRET="papyrus" papyrusglobal/netstats:test-latest
 
-    Browse it on http://localhost:3000.
+    Browse it on http://localhost:4000.
 
 2.  Run or restart the network.
 
