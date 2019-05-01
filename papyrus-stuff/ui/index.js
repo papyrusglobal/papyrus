@@ -1,14 +1,16 @@
-const ether = 10 ** 18;
 const biosAddress = '0x0000000000000000000000000000000000000022';
+const gatewayUrl = 'http://148.251.152.112:52545/';  // head.papyrus.network:testnet
+// const gatewayUrl = 'http://148.251.152.112:18545/';  // head.papyrus.network:localtest
+const ether = 10 ** 18;
 let contract;
 let account;
 
 async function init() {
-  console.log(window.web3.currentProvider);
   if (typeof web3 === 'undefined') {
     show('no-web3-error');
     return;
   }
+  // web3 = new Web3(new Web3.providers.HttpProvider(gatewayUrl));
   web3 = new Web3(window.web3.currentProvider);
   const accounts = await web3.eth.getAccounts();
   account = accounts[0];
@@ -25,10 +27,11 @@ async function init() {
 
   contract = new web3.eth.Contract(abi, biosAddress);
   text('version', await contract.methods.version().call({ from: account }));
+  text('address', biosAddress);
   text('all-stakes', await web3.eth.getBalance(biosAddress));
   text('stake', await contract.methods.stakes(account).call({ from: account }));
 
-  const limit = await request('http://148.251.152.112:52545/', {
+  const limit = await request(gatewayUrl, {
     jsonrpc: "2.0",
     method: "eth_getLimit",
     params: [account, "latest"],
