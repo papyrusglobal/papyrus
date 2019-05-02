@@ -1,12 +1,14 @@
 const biosAddress = '0x0000000000000000000000000000000000000022';
-const gatewayUrl = 'http://148.251.152.112:52545/';  // head.papyrus.network:testnet
 // const gatewayUrl = 'http://148.251.152.112:18545/';  // head.papyrus.network:localtest
+// const biosAddress = '0x142ac51e2b05a107c1482f4832b73c5bc55b6fd5'; // @rinkeby
+// const gatewayUrl = 'http://148.251.152.112:52545/';  // head.papyrus.network:testnet
 const ether = 10 ** 18;
 let contract;
 let account;
+let web3;
 
 async function init() {
-  if (typeof web3 === 'undefined') {
+  if (typeof window.web3 === 'undefined') {
     show('no-web3-error');
     return;
   }
@@ -31,12 +33,7 @@ async function init() {
   text('all-stakes', await web3.eth.getBalance(biosAddress));
   text('stake', await contract.methods.stakes(account).call({ from: account }));
 
-  const limit = await request(gatewayUrl, {
-    jsonrpc: "2.0",
-    method: "eth_getLimit",
-    params: [account, "latest"],
-    id: 1
-  });
+  const limit = await getLimit();
   text('limit', limit.result);
 }
 
@@ -57,9 +54,9 @@ async function onWithdraw() {
 async function process(transaction) {
   return transaction
     .on('receipt', receipt => {
-      console.log('Done!');
       show('tx-info', false);
       console.log('Mined: ', receipt.blockNumber);
+      location.reload();
     })
     .on('confirmation', (confirmationNo, receipt) => {
       console.log('Confirmation', confirmationNo);
@@ -72,24 +69,43 @@ async function process(transaction) {
     .catch(err => console.log('Error:', err.message));
 }
 
-async function request(url, req) {
-  return new Promise((resolve, revert) => {
-    const xmlhttp = new XMLHttpRequest();
-    xmlhttp.open('POST', url);
-    xmlhttp.setRequestHeader("Content-Type", "application/json");
-    xmlhttp.send(JSON.stringify(req));
-    xmlhttp.onload = () => {
-      if (xmlhttp.status !== 200) {
-        revert(new Error(xmlhttp.statusText));
-      } else {
-        resolve(JSON.parse(xmlhttp.responseText));
-      }
-    };
-    xmlhttp.onerror = function() {
-      revert(new Error('Request failed'));
-    };
+async function getLimit() {
+  // TODO: use send() instead, but Metamask 6.4.1 is buggy here.
+  // https://github.com/MetaMask/metamask-docs/blob/master/03_API_Reference/01_Ethereum_Provider.md#ethereumsendoptions
+  return new Promise((resolve, reject) => {
+    window.web3.currentProvider.sendAsync({
+      jsonrpc: "2.0",
+      method: "eth_getLimit",
+      params: [account, "latest"],
+      from: account,
+      id: 1
+    }, (err, res) => {
+      if (err) reject(err);
+      resolve(res);
+    });
   });
 }
+
+// Obsolete - now use Metamask send(). But want to keep this code for a while.
+//
+// async function request(url, req) {
+//   return new Promise((resolve, revert) => {
+//     const xmlhttp = new XMLHttpRequest();
+//     xmlhttp.open('POST', url);
+//     xmlhttp.setRequestHeader("Content-Type", "application/json");
+//     xmlhttp.send(JSON.stringify(req));
+//     xmlhttp.onload = () => {
+//       if (xmlhttp.status !== 200) {
+//         revert(new Error(xmlhttp.statusText));
+//       } else {
+//         resolve(JSON.parse(xmlhttp.responseText));
+//       }
+//     };
+//     xmlhttp.onerror = function() {
+//       revert(new Error('Request failed'));
+//     };
+//   });
+// }
 
 function show(id, flag) {
   document.getElementById(id).style.display =

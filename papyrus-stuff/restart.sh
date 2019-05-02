@@ -61,5 +61,6 @@ $GETH4 --verbosity 5 \
        --rpcaddr='0.0.0.0' \
        --rpcport=18545 \
        --rpccorsdomain='*' \
+       --rpcvhosts='*' \
        --ethstats='Local-Papyrus-test-4:papyrus@localhost:4000' \
        >log.4 2>&1 &
