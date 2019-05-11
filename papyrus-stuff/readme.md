@@ -1,14 +1,16 @@
 Test network
 ============
 
-The network consists of 4 nodes:
+The network consists of 5 nodes:
 
 1. Local-Papyrus-test-1 - miner with address
    `fe61af93f93e578f3986584a91443d5b1378d04b`.
 2. Local-Papyrus-test-2 - miner with address
    `4d7ce34437695e6a615ff1e28265c7e46daeaf1e`.
-3. Local-Papyrus-test-3 - no function, just watches.
-4. Local-Papyrus-test-4 - gateway with rpc on http://localhost:18545.
+3. Local-Papyrus-test-2 - miner with address
+   `e04db742d1b83dd1d03225617f4ded5c9d210fbd`.
+4. Local-Papyrus-test-4 - no function, just watches.
+5. Local-Papyrus-test-gw - gateway with rpc on http://localhost:18545.
 
 Logs of every node are saved in `log.N` file.
 
