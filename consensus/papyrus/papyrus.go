@@ -516,6 +516,7 @@ func (c *Papyrus) verifySeal(chain consensus.ChainReader, header *types.Header, 
 // Prepare implements consensus.Engine, preparing all the consensus fields of the
 // header for running the transactions on top.
 func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) error {
+	/// debug.PrintStack()
 	// If the block isn't a checkpoint, cast a random vote (good enough for now)
 	header.Coinbase = common.Address{}
 	header.Nonce = types.BlockNonce{}
@@ -581,7 +582,20 @@ func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) err
 // Finalize implements consensus.Engine, ensuring no uncles are set, nor block
 // rewards given, and returns the final block.
 func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	// No block rewards in PoA, so the state remains as is and uncles are dropped
+	coinbase, err := c.Author(header)
+	if err == nil {
+		log.Warn("/// Block reward", "block", header.Number,
+			"coinbase", coinbase)
+		state.AddBalance(coinbase, big.NewInt(1))
+	} else {
+		log.Warn("/// Block reward", "block", header.Number,
+			"coinbase", c.signer,
+			"err", err)
+		if c.signer != (common.Address{}) {
+			state.AddBalance(c.signer, big.NewInt(1))
+		}
+	}
+
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
 
