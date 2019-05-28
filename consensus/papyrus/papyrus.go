@@ -31,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -204,14 +203,14 @@ type Papyrus struct {
 	config *params.PapyrusConfig // Consensus engine configuration parameters
 	db     ethdb.Database        // Database to store and retrieve snapshot checkpoints
 
+	recents    *lru.ARCCache // Snapshots for recent block to speed up reorgs
 	signatures *lru.ARCCache // Signatures of recent blocks to speed up mining
+
+	proposals map[common.Address]bool // Current list of proposals we are pushing
 
 	signer common.Address // Ethereum address of the signing key
 	signFn SignerFn       // Signer function to authorize hashes with
 	lock   sync.RWMutex   // Protects the signer fields
-
-	signers       []common.Address          // Current signers list
-	recentSigners map[uint64]common.Address // Set of recent signers for spam protections
 
 	// The fields below are for testing only
 	fakeDiff bool // Skip difficulty verifications
@@ -226,40 +225,16 @@ func New(config *params.PapyrusConfig, db ethdb.Database) *Papyrus {
 		conf.Epoch = epochLength
 	}
 	// Allocate the snapshot caches and create the engine
+	recents, _ := lru.NewARC(inmemorySnapshots)
 	signatures, _ := lru.NewARC(inmemorySignatures)
 
-	log.Warn("/// New", "signers", defaultSigners(config))
 	return &Papyrus{
-		config:        &conf,
-		db:            db,
-		signatures:    signatures,
-		signers:       defaultSigners(config),
-		recentSigners: make(map[uint64]common.Address),
+		config:     &conf,
+		db:         db,
+		recents:    recents,
+		signatures: signatures,
+		proposals:  make(map[common.Address]bool),
 	}
-}
-
-func defaultSigners(config *params.PapyrusConfig) []common.Address {
-	return []common.Address{config.Starter1, config.Starter2}
-}
-
-func (c *Papyrus) isAuthorized(signer common.Address) bool {
-	authorized := false
-	for i := range c.signers {
-		if c.signers[i] == signer {
-			authorized = true
-		}
-	}
-	return authorized
-}
-
-// SetSigners populates signer list from the Bios contract
-func (c *Papyrus) SetSigners(signers []common.Address) {
-	if len(signers) > 0 {
-		c.signers = signers
-	} else {
-		c.signers = defaultSigners(c.config)
-	}
-	log.Warn("/// SetSigners", "signers", c.signers)
 }
 
 // Author implements consensus.Engine, returning the Ethereum address recovered
@@ -380,10 +355,15 @@ func (c *Papyrus) verifyCascadingFields(chain consensus.ChainReader, header *typ
 	if parent.Time+c.config.Period > header.Time {
 		return ErrInvalidTimestamp
 	}
+	// Retrieve the snapshot needed to verify this header and cache it
+	snap, err := c.snapshot(chain, number-1, header.ParentHash, parents)
+	if err != nil {
+		return err
+	}
 	// If the block is a checkpoint block, verify the signer list
 	if number%c.config.Epoch == 0 {
-		signers := make([]byte, len(c.signers)*common.AddressLength)
-		for i, signer := range c.signers {
+		signers := make([]byte, len(snap.Signers)*common.AddressLength)
+		for i, signer := range snap.signers() {
 			copy(signers[i*common.AddressLength:], signer[:])
 		}
 		extraSuffix := len(header.Extra) - extraSeal
@@ -393,6 +373,84 @@ func (c *Papyrus) verifyCascadingFields(chain consensus.ChainReader, header *typ
 	}
 	// All basic checks passed, verify the seal and return
 	return c.verifySeal(chain, header, parents)
+}
+
+// snapshot retrieves the authorization snapshot at a given point in time.
+func (c *Papyrus) snapshot(chain consensus.ChainReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
+	// Search for a snapshot in memory or on disk for checkpoints
+	var (
+		headers []*types.Header
+		snap    *Snapshot
+	)
+	for snap == nil {
+		// If an in-memory snapshot was found, use that
+		if s, ok := c.recents.Get(hash); ok {
+			snap = s.(*Snapshot)
+			break
+		}
+		// If an on-disk checkpoint snapshot can be found, use that
+		if number%checkpointInterval == 0 {
+			if s, err := loadSnapshot(c.config, c.signatures, c.db, hash); err == nil {
+				log.Trace("Loaded voting snapshot from disk", "number", number, "hash", hash)
+				snap = s
+				break
+			}
+		}
+		// If we're at an checkpoint block, make a snapshot if it's known
+		if number == 0 || (number%c.config.Epoch == 0 && chain.GetHeaderByNumber(number-1) == nil) {
+			checkpoint := chain.GetHeaderByNumber(number)
+			if checkpoint != nil {
+				hash := checkpoint.Hash()
+
+				signers := make([]common.Address, (len(checkpoint.Extra)-extraVanity-extraSeal)/common.AddressLength)
+				for i := 0; i < len(signers); i++ {
+					copy(signers[i][:], checkpoint.Extra[extraVanity+i*common.AddressLength:])
+				}
+				snap = newSnapshot(c.config, c.signatures, number, hash, signers)
+				if err := snap.store(c.db); err != nil {
+					return nil, err
+				}
+				log.Info("Stored checkpoint snapshot to disk", "number", number, "hash", hash)
+				break
+			}
+		}
+		// No snapshot for this header, gather the header and move backward
+		var header *types.Header
+		if len(parents) > 0 {
+			// If we have explicit parents, pick from there (enforced)
+			header = parents[len(parents)-1]
+			if header.Hash() != hash || header.Number.Uint64() != number {
+				return nil, consensus.ErrUnknownAncestor
+			}
+			parents = parents[:len(parents)-1]
+		} else {
+			// No explicit parents (or no more left), reach out to the database
+			header = chain.GetHeader(hash, number)
+			if header == nil {
+				return nil, consensus.ErrUnknownAncestor
+			}
+		}
+		headers = append(headers, header)
+		number, hash = number-1, header.ParentHash
+	}
+	// Previous snapshot found, apply any pending headers on top of it
+	for i := 0; i < len(headers)/2; i++ {
+		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
+	}
+	snap, err := snap.apply(headers)
+	if err != nil {
+		return nil, err
+	}
+	c.recents.Add(snap.Hash, snap)
+
+	// If we've generated a new checkpoint snapshot, save to disk
+	if snap.Number%checkpointInterval == 0 && len(headers) > 0 {
+		if err = snap.store(c.db); err != nil {
+			return nil, err
+		}
+		log.Trace("Stored voting snapshot to disk", "number", snap.Number, "hash", snap.Hash)
+	}
+	return snap, err
 }
 
 // VerifyUncles implements consensus.Engine, always returning an error for any
@@ -420,26 +478,31 @@ func (c *Papyrus) verifySeal(chain consensus.ChainReader, header *types.Header, 
 	if number == 0 {
 		return errUnknownBlock
 	}
+	// Retrieve the snapshot needed to verify this header and cache it
+	snap, err := c.snapshot(chain, number-1, header.ParentHash, parents)
+	if err != nil {
+		return err
+	}
 
 	// Resolve the authorization key and check against signers
 	signer, err := ecrecover(header, c.signatures)
 	if err != nil {
 		return err
 	}
-	if !c.isAuthorized(signer) {
+	if _, ok := snap.Signers[signer]; !ok {
 		return errUnauthorizedSigner
 	}
-	for seen, recent := range c.recentSigners {
+	for seen, recent := range snap.Recents {
 		if recent == signer {
 			// Signer is among recents, only fail if the current block doesn't shift it out
-			if limit := uint64(len(c.signers)/2 + 1); seen > number-limit {
+			if limit := uint64(len(snap.Signers)/2 + 1); seen > number-limit {
 				return errRecentlySigned
 			}
 		}
 	}
 	// Ensure that the difficulty corresponds to the turn-ness of the signer
 	if !c.fakeDiff {
-		inturn := c.inturn(header.Number.Uint64(), signer)
+		inturn := snap.inturn(header.Number.Uint64(), signer)
 		if inturn && header.Difficulty.Cmp(diffInTurn) != 0 {
 			return errWrongDifficulty
 		}
@@ -459,8 +522,34 @@ func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) err
 	header.Nonce = types.BlockNonce{}
 
 	number := header.Number.Uint64()
+	// Assemble the voting snapshot to check which votes make sense
+	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
+	if err != nil {
+		return err
+	}
+	if number%c.config.Epoch != 0 {
+		c.lock.RLock()
+
+		// Gather all the proposals that make sense voting on
+		addresses := make([]common.Address, 0, len(c.proposals))
+		for address, authorize := range c.proposals {
+			if snap.validVote(address, authorize) {
+				addresses = append(addresses, address)
+			}
+		}
+		// If there's pending proposals, cast a vote on them
+		if len(addresses) > 0 {
+			header.Coinbase = addresses[rand.Intn(len(addresses))]
+			if c.proposals[header.Coinbase] {
+				copy(header.Nonce[:], nonceAuthVote)
+			} else {
+				copy(header.Nonce[:], nonceDropVote)
+			}
+		}
+		c.lock.RUnlock()
+	}
 	// Set the correct difficulty
-	header.Difficulty = CalcDifficulty(c, number)
+	header.Difficulty = CalcDifficulty(snap, c.signer)
 
 	// Ensure the extra data has all it's components
 	if len(header.Extra) < extraVanity {
@@ -469,7 +558,7 @@ func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) err
 	header.Extra = header.Extra[:extraVanity]
 
 	if number%c.config.Epoch == 0 {
-		for _, signer := range c.signers {
+		for _, signer := range snap.signers() {
 			header.Extra = append(header.Extra, signer[:]...)
 		}
 	}
@@ -506,8 +595,6 @@ func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, st
 			state.AddBalance(c.signer, big.NewInt(1))
 		}
 	}
-
-	c.SetSigners(core.GetSigners(state))
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
@@ -547,14 +634,18 @@ func (c *Papyrus) Seal(chain consensus.ChainReader, block *types.Block, results 
 	c.lock.RUnlock()
 
 	// Bail out if we're unauthorized to sign a block
-	if !c.isAuthorized(signer) {
+	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
+	if err != nil {
+		return err
+	}
+	if _, authorized := snap.Signers[signer]; !authorized {
 		return errUnauthorizedSigner
 	}
 	// If we're amongst the recent signers, wait for the next block
-	for seen, recent := range c.recentSigners {
+	for seen, recent := range snap.Recents {
 		if recent == signer {
 			// Signer is among recents, only wait if the current block doesn't shift it out
-			if limit := uint64(len(c.signers)/2 + 1); number < limit || seen > number-limit {
+			if limit := uint64(len(snap.Signers)/2 + 1); number < limit || seen > number-limit {
 				log.Info("Signed recently, must wait for others")
 				return nil
 			}
@@ -564,7 +655,7 @@ func (c *Papyrus) Seal(chain consensus.ChainReader, block *types.Block, results 
 	delay := time.Unix(int64(header.Time), 0).Sub(time.Now()) // nolint: gosimple
 	if header.Difficulty.Cmp(diffNoTurn) == 0 {
 		// It's not our turn explicitly to sign, delay it a bit
-		wiggle := time.Duration(len(c.signers)/2+1) * wiggleTime
+		wiggle := time.Duration(len(snap.Signers)/2+1) * wiggleTime
 		delay += time.Duration(rand.Int63n(int64(wiggle)))
 
 		log.Trace("Out-of-turn signing requested", "wiggle", common.PrettyDuration(wiggle))
@@ -594,27 +685,22 @@ func (c *Papyrus) Seal(chain consensus.ChainReader, block *types.Block, results 
 	return nil
 }
 
-// inturn returns if a signer at a given block height is in-turn or not.
-func (c *Papyrus) inturn(number uint64, signer common.Address) bool {
-	offset := 0
-	for offset < len(c.signers) && c.signers[offset] != signer {
-		offset++
-	}
-	return (number % uint64(len(c.signers))) == uint64(offset)
-}
-
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have based on the previous blocks in the chain and the
 // current signer.
 func (c *Papyrus) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
-	return CalcDifficulty(c, parent.Number.Uint64()+1)
+	snap, err := c.snapshot(chain, parent.Number.Uint64(), parent.Hash(), nil)
+	if err != nil {
+		return nil
+	}
+	return CalcDifficulty(snap, c.signer)
 }
 
 // CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 // that a new block should have based on the previous blocks in the chain and the
 // current signer.
-func CalcDifficulty(c *Papyrus, number uint64) *big.Int {
-	if c.inturn(number, c.signer) {
+func CalcDifficulty(snap *Snapshot, signer common.Address) *big.Int {
+	if snap.inturn(snap.Number+1, signer) {
 		return new(big.Int).Set(diffInTurn)
 	}
 	return new(big.Int).Set(diffNoTurn)

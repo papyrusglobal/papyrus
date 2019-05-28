@@ -228,10 +228,8 @@ func (c *CliqueConfig) String() string {
 
 // PapyrusConfig is the consensus engine configs based on Clique.
 type PapyrusConfig struct {
-	Period   uint64         `json:"period"`   // Number of seconds between blocks to enforce
-	Epoch    uint64         `json:"epoch"`    // Epoch length to reset votes and checkpoint
-	Starter1 common.Address `json:"starter1"` // Initial signer 1
-	Starter2 common.Address `json:"starter2"` // Initial signer 2
+	Period uint64 `json:"period"` // Number of seconds between blocks to enforce
+	Epoch  uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
 }
 
 // String implements the stringer interface, returning the consensus engine details.
