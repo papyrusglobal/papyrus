@@ -210,8 +210,8 @@ type Papyrus struct {
 	signFn SignerFn       // Signer function to authorize hashes with
 	lock   sync.RWMutex   // Protects the signer fields
 
-	signers []common.Address          // Current signers list
-	recents map[uint64]common.Address // Set of recent signers for spam protections
+	signers       []common.Address          // Current signers list
+	recentSigners map[uint64]common.Address // Set of recent signers for spam protections
 
 	// The fields below are for testing only
 	fakeDiff bool // Skip difficulty verifications
@@ -230,11 +230,11 @@ func New(config *params.PapyrusConfig, db ethdb.Database) *Papyrus {
 
 	log.Warn("/// New", "signers", defaultSigners(config))
 	return &Papyrus{
-		config:     &conf,
-		db:         db,
-		signatures: signatures,
-		signers:    defaultSigners(config),
-		recents:    make(map[uint64]common.Address),
+		config:        &conf,
+		db:            db,
+		signatures:    signatures,
+		signers:       defaultSigners(config),
+		recentSigners: make(map[uint64]common.Address),
 	}
 }
 
@@ -429,17 +429,14 @@ func (c *Papyrus) verifySeal(chain consensus.ChainReader, header *types.Header, 
 	if !c.isAuthorized(signer) {
 		return errUnauthorizedSigner
 	}
-	limit := uint64(len(c.signers)/2 + 1)
-	if number >= limit {
-		for seen := number - 1; seen > number-limit; seen-- {
-			if signer == c.recents[seen] {
-				// Signer is among recents, only fail if the current block doesn't shift it out
+	for seen, recent := range c.recentSigners {
+		if recent == signer {
+			// Signer is among recents, only fail if the current block doesn't shift it out
+			if limit := uint64(len(c.signers)/2 + 1); seen > number-limit {
 				return errRecentlySigned
 			}
 		}
 	}
-	c.recents[number] = signer
-
 	// Ensure that the difficulty corresponds to the turn-ness of the signer
 	if !c.fakeDiff {
 		inturn := c.inturn(header.Number.Uint64(), signer)
@@ -462,10 +459,6 @@ func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) err
 	header.Nonce = types.BlockNonce{}
 
 	number := header.Number.Uint64()
-
-	log.Warn("/// recents", "block", header.Number, "sealer", c.signer)
-	c.recents[number] = c.signer
-
 	// Set the correct difficulty
 	header.Difficulty = CalcDifficulty(c, number)
 
@@ -500,20 +493,20 @@ func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) err
 // Finalize implements consensus.Engine, ensuring no uncles are set, nor block
 // rewards given, and returns the final block.
 func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	sealer, err := c.Author(header)
+	coinbase, err := c.Author(header)
 	if err == nil {
 		log.Warn("/// Block reward", "block", header.Number,
-			"sealer", sealer)
-		state.AddBalance(sealer, big.NewInt(1))
+			"coinbase", coinbase)
+		state.AddBalance(coinbase, big.NewInt(1))
 	} else {
 		log.Warn("/// Block reward", "block", header.Number,
-			"sealer", c.signer,
+			"coinbase", c.signer,
 			"err", err)
 		if c.signer != (common.Address{}) {
-			sealer = c.signer
-			state.AddBalance(sealer, big.NewInt(1))
+			state.AddBalance(c.signer, big.NewInt(1))
 		}
 	}
+
 	c.SetSigners(core.GetSigners(state))
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
@@ -558,11 +551,10 @@ func (c *Papyrus) Seal(chain consensus.ChainReader, block *types.Block, results 
 		return errUnauthorizedSigner
 	}
 	// If we're amongst the recent signers, wait for the next block
-	limit := uint64(len(c.signers)/2 + 1)
-	if number >= limit {
-		for seen := number - 1; seen > number-limit; seen-- {
-			if signer == c.recents[seen] {
-				// Signer is among recents, only fail if the current block doesn't shift it out
+	for seen, recent := range c.recentSigners {
+		if recent == signer {
+			// Signer is among recents, only wait if the current block doesn't shift it out
+			if limit := uint64(len(c.signers)/2 + 1); number < limit || seen > number-limit {
 				log.Info("Signed recently, must wait for others")
 				return nil
 			}
