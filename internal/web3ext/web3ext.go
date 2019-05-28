@@ -138,23 +138,7 @@ web3._extend({
 			call: 'papyrus_getSignersAtHash',
 			params: 1
 		}),
-		new web3._extend.Method({
-			name: 'propose',
-			call: 'papyrus_propose',
-			params: 2
-		}),
-		new web3._extend.Method({
-			name: 'discard',
-			call: 'papyrus_discard',
-			params: 1
-		}),
 	],
-	properties: [
-		new web3._extend.Property({
-			name: 'proposals',
-			getter: 'papyrus_proposals'
-		}),
-	]
 });
 `
 

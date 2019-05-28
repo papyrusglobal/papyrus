@@ -52,7 +52,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 }
 
 // BiosAddress - address of the Bios contract that keeps staking values.
-var BiosAddress = common.Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x22}
+var BiosAddress = common.HexToAddress("0x0000000000000000000000000000000000000022")
 
 // GetStaked returns currently staked value by the given address.
 func GetStaked(sender common.Address, state vm.StateDB) common.Hash {
@@ -62,6 +62,28 @@ func GetStaked(sender common.Address, state vm.StateDB) common.Hash {
 	hasher.Write(disposition)
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	return state.GetState(BiosAddress, common.HexToHash(hash))
+}
+
+// signersOffset is the offset of signers array in Bios contract storage
+// space. Actually it is keccak256(abi.encode(1)) because signers array
+// occupies slot 1.
+var signersArrayOffset = common.HexToHash("b10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6").Big()
+var signersLenOffset = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000001")
+
+// GetSigners fetches signers list from the Bios contract.
+func GetSigners(state vm.StateDB) []common.Address {
+	lenSlot := state.GetState(BiosAddress, signersLenOffset)
+	len := new(big.Int).SetBytes(lenSlot[:]).Uint64()
+	log.Warn("/// signers", "len", len)
+	signers := make([]common.Address, len)
+	for i := range signers {
+		addressSlot := state.GetState(
+			BiosAddress,
+			common.BigToHash(new(big.Int).Add(signersArrayOffset, big.NewInt(int64(i)))))
+		signers[i] = common.BytesToAddress(addressSlot[:])
+		log.Warn("/// signers", "next", signers[i])
+	}
+	return signers
 }
 
 // FetchLimit gets the current limit for the specified account. If the limit
@@ -108,8 +130,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		usedGas  = new(uint64)
 		header   = block.Header()
 		allLogs  []*types.Log
-		gp       = new(GasPool).AddGas(block.GasLimit())
+
+		gp = new(GasPool).AddGas(block.GasLimit())
 	)
+	/// papyrus := p.engine.(*papyrus.Papyrus)
+	/// papyrus.SetSigners(GetSigners(statedb))
+
 	// Mutate the block and state according to any hard-fork specs
 	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
 		misc.ApplyDAOHardFork(statedb)

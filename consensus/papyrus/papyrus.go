@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -206,8 +207,6 @@ type Papyrus struct {
 	recents    *lru.ARCCache // Snapshots for recent block to speed up reorgs
 	signatures *lru.ARCCache // Signatures of recent blocks to speed up mining
 
-	proposals map[common.Address]bool // Current list of proposals we are pushing
-
 	signer common.Address // Ethereum address of the signing key
 	signFn SignerFn       // Signer function to authorize hashes with
 	lock   sync.RWMutex   // Protects the signer fields
@@ -233,7 +232,6 @@ func New(config *params.PapyrusConfig, db ethdb.Database) *Papyrus {
 		db:         db,
 		recents:    recents,
 		signatures: signatures,
-		proposals:  make(map[common.Address]bool),
 	}
 }
 
@@ -527,27 +525,6 @@ func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) err
 	if err != nil {
 		return err
 	}
-	if number%c.config.Epoch != 0 {
-		c.lock.RLock()
-
-		// Gather all the proposals that make sense voting on
-		addresses := make([]common.Address, 0, len(c.proposals))
-		for address, authorize := range c.proposals {
-			if snap.validVote(address, authorize) {
-				addresses = append(addresses, address)
-			}
-		}
-		// If there's pending proposals, cast a vote on them
-		if len(addresses) > 0 {
-			header.Coinbase = addresses[rand.Intn(len(addresses))]
-			if c.proposals[header.Coinbase] {
-				copy(header.Nonce[:], nonceAuthVote)
-			} else {
-				copy(header.Nonce[:], nonceDropVote)
-			}
-		}
-		c.lock.RUnlock()
-	}
 	// Set the correct difficulty
 	header.Difficulty = CalcDifficulty(snap, c.signer)
 
@@ -582,17 +559,32 @@ func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) err
 // Finalize implements consensus.Engine, ensuring no uncles are set, nor block
 // rewards given, and returns the final block.
 func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+	number := header.Number.Uint64()
 	coinbase, err := c.Author(header)
 	if err == nil {
-		log.Warn("/// Block reward", "block", header.Number,
+		log.Warn("/// Block reward", "block", number,
 			"coinbase", coinbase)
 		state.AddBalance(coinbase, big.NewInt(1))
 	} else {
-		log.Warn("/// Block reward", "block", header.Number,
+		log.Warn("/// Block reward", "block", number,
 			"coinbase", c.signer,
 			"err", err)
 		if c.signer != (common.Address{}) {
 			state.AddBalance(c.signer, big.NewInt(1))
+		}
+	}
+
+	// Update signers from Bios contract
+	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
+	if err != nil {
+		log.Warn("/// Finalize could not find snapshot for", "block", number, "err", err)
+	} else {
+		newSigners := core.GetSigners(state)
+		if len(newSigners) > 0 {
+			snap.Signers = make(map[common.Address]struct{})
+			for _, signer := range newSigners {
+				snap.Signers[signer] = struct{}{}
+			}
 		}
 	}
 
