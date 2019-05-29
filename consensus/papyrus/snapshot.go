@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	lru "github.com/hashicorp/golang-lru"
 )
@@ -153,6 +154,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 		}
 		for _, recent := range snap.Recents {
 			if recent == signer {
+				log.Warn("/// recents", "snap", snap)
 				return nil, errRecentlySigned
 			}
 		}
@@ -162,6 +164,10 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 			snap.Signers = make(map[common.Address]struct{})
 			for _, signer := range snap.Next {
 				snap.Signers[signer] = struct{}{}
+			}
+			// Signer list shrunk, delete any leftover recent caches
+			if limit := uint64(len(snap.Signers)/2 + 1); number >= limit {
+				delete(snap.Recents, number-limit)
 			}
 		}
 
