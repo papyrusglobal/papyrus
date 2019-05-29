@@ -37,6 +37,7 @@ type Snapshot struct {
 	Hash    common.Hash                 `json:"hash"`    // Block hash where the snapshot was created
 	Signers map[common.Address]struct{} `json:"signers"` // Set of authorized signers at this moment
 	Recents map[uint64]common.Address   `json:"recents"` // Set of recent signers for spam protections
+	Next    []common.Address            `json:"next"`    // Array of signers for the next block
 }
 
 // signersAscending implements the sort interface to allow sorting a list of addresses
@@ -98,6 +99,7 @@ func (s *Snapshot) copy() *Snapshot {
 		Hash:     s.Hash,
 		Signers:  make(map[common.Address]struct{}),
 		Recents:  make(map[uint64]common.Address),
+		Next:     s.Next,
 	}
 	for signer := range s.Signers {
 		cpy.Signers[signer] = struct{}{}
@@ -155,6 +157,14 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 			}
 		}
 		snap.Recents[number] = signer
+
+		if len(snap.Next) > 0 {
+			snap.Signers = make(map[common.Address]struct{})
+			for _, signer := range snap.Next {
+				snap.Signers[signer] = struct{}{}
+			}
+		}
+
 	}
 	snap.Number += uint64(len(headers))
 	snap.Hash = headers[len(headers)-1].Hash()

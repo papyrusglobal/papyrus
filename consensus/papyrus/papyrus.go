@@ -579,13 +579,7 @@ func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, st
 	if err != nil {
 		log.Warn("/// Finalize could not find snapshot for", "block", number, "err", err)
 	} else {
-		newSigners := core.GetSigners(state)
-		if len(newSigners) > 0 {
-			snap.Signers = make(map[common.Address]struct{})
-			for _, signer := range newSigners {
-				snap.Signers[signer] = struct{}{}
-			}
-		}
+		snap.Next = core.GetSigners(state)
 	}
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
