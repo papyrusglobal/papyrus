@@ -78,5 +78,9 @@ $GETH5 --verbosity 5 \
        --rpcport=18545 \
        --rpccorsdomain='*' \
        --rpcvhosts='*' \
+       --ws \
+       --wsaddr='0.0.0.0' \
+       --wsport=18546 \
+       --wsorigins='*' \
        --ethstats='Local-Papyrus-test-gw:papyrus@localhost:4000' \
        >log.5 2>&1 &

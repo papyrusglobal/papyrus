@@ -1,7 +1,10 @@
-pragma solidity ^0.5.1;
+pragma solidity >=0.4.0 <0.6.0;
 
 
-contract QueueHelper{
+/// @author The Papyrus team.
+/// @title Helper contract providing queue implementation.
+/// @dev No storage data here because the contract is inherited.
+contract QueueHelper {
     uint8 constant queueLen = 5;
 
     struct Queue {
