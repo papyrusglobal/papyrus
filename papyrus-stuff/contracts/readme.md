@@ -4,7 +4,7 @@ Bios smart contract
 Compile
 -------
 
-    solc --bin-runtime contracts/Bios.sol
+    solc --bin-runtime --optimize contracts/Bios.sol
 
 and put the resulting binary data to config/genesis.json.
 

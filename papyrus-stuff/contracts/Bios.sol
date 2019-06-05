@@ -10,7 +10,7 @@ import "./QueueHelper.sol";
 contract Bios is QueueHelper {
     uint32 constant freezeGap = 5 seconds;   // time gap before withdrawing melted stake
     uint constant newSealerPollingTime = 3 minutes;
-    uint constant minWinVotes = 3;
+    uint constant minWinVotes = 2;
     uint constant sealerVotes = 7;           // votes each participant has
 
     /// Public data shared with client code.
@@ -122,6 +122,9 @@ contract Bios is QueueHelper {
         require(pollings[participant].closeTime < now, "polling already closed");
         SealerState storage state = sealerStates[msg.sender];
         require(state.votes != 0, "must be sealer");
+        for (uint i = 0; i < sealerVotes; i++) {
+            require(state.bet[i] != participant, "already bet");
+        }
         // TODO: clear current bet
         state.bet[slot] = participant;
         pollings[participant].votes++;
