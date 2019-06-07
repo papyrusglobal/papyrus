@@ -40,7 +40,7 @@ contract Bios is QueueHelper {
         uint votes;
         address[sealerVotes] bet;
     }
-    mapping(address=>SealerState) sealerStates;
+    mapping(address=>SealerState) public sealerStates;
 
     /// Stake the specified amount of money.
     /// @dev The value is on the contract account and thus inaccessible to the sender.
@@ -107,7 +107,7 @@ contract Bios is QueueHelper {
     function proposeNewSealer(address participant) public {
         require(sealerStates[msg.sender].votes != 0, "must be sealer");
         require(sealerStates[participant].votes == 0, "already sealer");
-        require(pollings[participant].typ != PollingType(0), "already proposed");
+        require(pollings[participant].typ == PollingType(0), "already proposed");
         pollings[participant] =
             Polling(PollingType.NEW_SEALER, now + newSealerPollingTime, 0);
         pollingAddresses.push(participant);
@@ -119,7 +119,7 @@ contract Bios is QueueHelper {
     function votePoll(uint slot, address participant) public {
         require(slot < sealerVotes, "slot too big");
         require(pollings[participant].typ != PollingType(0), "no polling");
-        require(pollings[participant].closeTime < now, "polling already closed");
+        require(pollings[participant].closeTime > now, "polling already closed");
         SealerState storage state = sealerStates[msg.sender];
         require(state.votes != 0, "must be sealer");
         for (uint i = 0; i < sealerVotes; i++) {
@@ -133,9 +133,10 @@ contract Bios is QueueHelper {
     /// Handle all pollings where time is up.
     /// @dev Anyone may call it.
     function handleClosedPollings() public {
-        for (uint i = 0; i < pollingAddresses.length; i++) {
+        uint i = 0;
+        do {
             Polling storage poll = pollings[pollingAddresses[i]];
-            if (poll.closeTime >= now) {
+            if (poll.closeTime <= now) {
                 if (poll.votes >= minWinVotes) {
                     sealers.push(pollingAddresses[i]);
                     SealerState memory sealer;
@@ -143,9 +144,10 @@ contract Bios is QueueHelper {
                     sealerStates[pollingAddresses[i]] = sealer;
                 }
                 delete(pollings[pollingAddresses[i]]);
-                pollingAddresses[i] = pollingAddresses[--pollingAddresses.length];
+                pollingAddresses[i] = pollingAddresses[pollingAddresses.length - 1];
+                --pollingAddresses.length;
             }
-        }
+        } while (++i < pollingAddresses.length);
     }
 
     /// @dev Work in progress.
