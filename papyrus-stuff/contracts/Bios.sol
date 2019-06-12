@@ -8,10 +8,11 @@ import "./QueueHelper.sol";
 /// @title Main consensus and staking contract.
 /// @dev Based on QueueHelper that brings queue implementation code.
 contract Bios is QueueHelper {
-    uint32 constant kFreezeGap = 5 seconds;   // time gap before withdrawing melted stake
-    uint constant kNewSealerPollTime = 1 minutes;
-    uint constant kMinWinVotes = 2;
-    uint constant kSealerVotes = 7;           // votes each participant has
+    uint constant kFreezeStake = 5 seconds;  // time gap before withdrawing melted stake
+    uint constant kNewAuthorityPollTime = 1 minutes;
+    uint constant kMinWinVotes = 2;          // threshold votes for new authority 
+    uint constant kSealerBets = 7;           // bets each participant has
+    uint constant kFreezeBet = 1 minutes;
 
     /// Public data shared with client code.
     mapping(address=>uint) public stakes;    // stakes map reside in slot #0
@@ -22,18 +23,20 @@ contract Bios is QueueHelper {
     mapping(address=>Queue) public melting;  // melting stakes queues
     bool public initialized = false;         // function init() called
 
-    /// Polling data.
-    struct Polling {
+    /// Poll status for the address.
+    struct PollStatus {
         uint closeTime;
         uint votes;
     }
-    mapping(address=>Polling) public addNewPoll;
-    address[] public pollingAddresses;
-
-    /// Voting state of every sealer.
+    mapping(address=>PollStatus) public addNewPoll;
+    address[] public pollAddresses;
+    
+    /// Poll state of the authority.
     struct SealerState {
         uint votes;
-        address[kSealerVotes] bet;
+        address[kSealerBets] bet;
+        uint[kSealerBets] betFrozenUntil;  // should be a struct, but UnimplementedFeatureError: 
+                                           // Copying of type struct memory to storage not yet supported.
     }
     mapping(address=>SealerState) public sealerStates;
 
@@ -61,7 +64,7 @@ contract Bios is QueueHelper {
     ///      to the sender's account.
     function withdraw() public {
         QueueHelper.Entry storage entry = QueueHelper.head(melting[msg.sender]);
-        require(now >= entry.timestamp + kFreezeGap);
+        require(now >= entry.timestamp + kFreezeStake);
         msg.sender.transfer(entry.stake);
         QueueHelper.pop(melting[msg.sender]);
     }
@@ -94,51 +97,60 @@ contract Bios is QueueHelper {
         initialized = true;
     }
 
-    /// Propose polling for new sealer.
+    /// Propose a poll for a new authority.
     /// @param participant - new sealer address.
-    function proposeNewSealer(address participant) public {
-        require(sealerStates[msg.sender].votes != 0, "must be sealer");
-        require(sealerStates[participant].votes == 0, "already sealer");
+    function proposeNewAuthority(address participant) public {
+        require(sealerStates[msg.sender].votes != 0, "must be authority");
+        require(sealerStates[participant].votes == 0, "already authority");
         require(addNewPoll[participant].closeTime == 0, "already proposed");
-        addNewPoll[participant] = Polling(now + kNewSealerPollTime, 0);
-        pollingAddresses.push(participant);
+        addNewPoll[participant] = PollStatus(now + kNewAuthorityPollTime, 0);
+        pollAddresses.push(participant);
     }
 
-    /// Vote for the participant in a poll.
+    /// Vote for the new authority.
     /// @param slot - number of voting slot to bet.
-    /// @param participant - address of the proposed sealer.
-    function votePoll(uint slot, address participant) public {
-        require(slot < kSealerVotes, "slot too big");
-        require(addNewPoll[participant].closeTime != 0, "no polling");
-        require(addNewPoll[participant].closeTime > now, "polling already closed");
+    /// @param participant - address of the proposed authority.
+    function voteForNewAuthority(uint slot, address participant) public {
+        require(slot < kSealerBets, "slot too big");
+        require(addNewPoll[participant].closeTime != 0, "no poll");
+        require(addNewPoll[participant].closeTime > now, "poll closed");
         SealerState storage state = sealerStates[msg.sender];
         require(state.votes != 0, "must be sealer");
-        for (uint i = 0; i < kSealerVotes; i++) {
+        require(state.betFrozenUntil[slot] < now, "bet frozen");
+        for (uint i = 0; i < kSealerBets; i++) {
             require(state.bet[i] != participant, "already bet");
         }
-        // TODO: clear current bet
+        // Reset current bet.
+        address old = state.bet[slot];
+        if (addNewPoll[old].closeTime != 0) {
+            addNewPoll[old].votes--;
+        } else {
+            sealerStates[old].votes--;
+        }
+        // Set new bet.
         state.bet[slot] = participant;
+        state.betFrozenUntil[slot] = uint32(now) + kFreezeBet;
         addNewPoll[participant].votes++;
     }
 
     /// Handle all pollings where time is up.
     /// @dev Anyone may call it.
-    function handleClosedPollings() public {
+    function handleClosedPolls() public {
         uint i = 0; 
         do {
-            Polling storage poll = addNewPoll[pollingAddresses[i]];
+            PollStatus storage poll = addNewPoll[pollAddresses[i]];
             if (poll.closeTime <= now) {
                 if (poll.votes >= kMinWinVotes) {
-                    sealers.push(pollingAddresses[i]);
+                    sealers.push(pollAddresses[i]);
                     SealerState memory sealer;
-                    sealer.votes = poll.votes;
-                    sealerStates[pollingAddresses[i]] = sealer;
+                    sealer.votes = poll.votes + 1;
+                    sealerStates[pollAddresses[i]] = sealer;
                 }
-                delete(addNewPoll[pollingAddresses[i]]);
-                pollingAddresses[i] = pollingAddresses[pollingAddresses.length - 1];
-                --pollingAddresses.length;
+                delete(addNewPoll[pollAddresses[i]]);
+                pollAddresses[i] = pollAddresses[pollAddresses.length - 1];
+                --pollAddresses.length;
             }
-        } while (++i < pollingAddresses.length);
+        } while (++i < pollAddresses.length);
     }
 
     /// @dev Work in progress.
