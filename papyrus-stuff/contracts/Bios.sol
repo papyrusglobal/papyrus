@@ -10,6 +10,7 @@ import "./QueueHelper.sol";
 contract Bios is QueueHelper {
     uint constant kFreezeStake = 5 seconds;  // time gap before withdrawing melted stake
     uint constant kNewAuthorityPollTime = 1 minutes;
+    uint constant kBlacklistAuthorityPollTime = 1 minutes;
     uint constant kMinWinVotes = 2;          // threshold votes for new authority 
     uint constant kSealerBets = 7;           // bets each participant has
     uint constant kFreezeBet = 1 minutes;
@@ -23,13 +24,22 @@ contract Bios is QueueHelper {
     mapping(address=>Queue) public melting;  // melting stakes queues
     bool public initialized = false;         // function init() called
 
-    /// Poll status for the address.
-    struct PollStatus {
+    /// Poll status for the new authority.
+    struct NewAuthorityPollStatus {
         uint closeTime;
         uint votes;
     }
-    mapping(address=>PollStatus) public addNewPoll;
-    address[] public pollAddresses;
+    mapping(address=>NewAuthorityPollStatus) public addNewPoll;
+    address[] public addNewPollAddresses;
+
+    /// Poll status for the authority blacklisting.
+    struct AuthorityBlacklistPollStatus {
+        uint closeTime;
+        uint votes;
+        mapping(address=>bool) voted;
+    }
+    mapping(address=>AuthorityBlacklistPollStatus) public authorityBlacklistPoll;
+    address[] public authorityBlacklistPollAddresses;
     
     /// Poll state of the authority.
     struct SealerState {
@@ -39,6 +49,9 @@ contract Bios is QueueHelper {
                                            // Copying of type struct memory to storage not yet supported.
     }
     mapping(address=>SealerState) public sealerStates;
+    
+    /// Black lists
+    mapping(address=>bool) public authorityBlackList;
 
     /// Stake the specified amount of money.
     /// @dev The value is on the contract account and thus inaccessible to the sender.
@@ -98,15 +111,25 @@ contract Bios is QueueHelper {
     }
 
     /// Propose a poll for a new authority.
-    /// @param participant - new sealer address.
+    /// @param participant - new authority address.
     function proposeNewAuthority(address participant) public {
         require(sealerStates[msg.sender].votes != 0, "must be authority");
         require(sealerStates[participant].votes == 0, "already authority");
         require(addNewPoll[participant].closeTime == 0, "already proposed");
-        addNewPoll[participant] = PollStatus(now + kNewAuthorityPollTime, 0);
-        pollAddresses.push(participant);
+        require(authorityBlackList[participant] == false, "in authority black list");
+        addNewPoll[participant] = NewAuthorityPollStatus(now + kNewAuthorityPollTime, 0);
+        addNewPollAddresses.push(participant);
     }
 
+    /// Propose a poll for blacklisting the authority to the authority black list.
+    /// @param participant - new authority address.
+    function proposeBlacklistAuthority(address participant) public {
+        require(authorityBlacklistPoll[participant].closeTime == 0, "already proposed");
+        require(authorityBlackList[participant] == false, "in authority black list");
+        authorityBlacklistPoll[participant] = AuthorityBlacklistPollStatus(now + kBlacklistAuthorityPollTime, 0);
+        authorityBlacklistPollAddresses.push(participant);
+    }
+    
     /// Vote for the new authority.
     /// @param slot - number of voting slot to bet.
     /// @param participant - address of the proposed authority.
@@ -132,25 +155,38 @@ contract Bios is QueueHelper {
         state.betFrozenUntil[slot] = uint32(now) + kFreezeBet;
         addNewPoll[participant].votes++;
     }
+    
+    /// Vote for adding the participant into authority black list.
+    /// @param participant - address of the proposed authority.
+    function voteForBlackListAuthority(address participant) public {
+        require(authorityBlacklistPoll[participant].closeTime != 0, "no poll");
+        require(authorityBlacklistPoll[participant].closeTime > now, "poll closed");
+        require(authorityBlacklistPoll[participant].voted[msg.sender] == false, "already voted");
+        SealerState storage state = sealerStates[msg.sender];
+        require(state.votes != 0, "must be sealer");
+        authorityBlacklistPoll[participant].voted[msg.sender] = true;
+        authorityBlacklistPoll[participant].votes++;
+    }
 
     /// Handle all pollings where time is up.
     /// @dev Anyone may call it.
     function handleClosedPolls() public {
         uint i = 0; 
         do {
-            PollStatus storage poll = addNewPoll[pollAddresses[i]];
+            NewAuthorityPollStatus storage poll = addNewPoll[addNewPollAddresses[i]];
             if (poll.closeTime <= now) {
                 if (poll.votes >= kMinWinVotes) {
-                    sealers.push(pollAddresses[i]);
+                    // TODO: shift out excess sealers.
+                    sealers.push(addNewPollAddresses[i]);
                     SealerState memory sealer;
                     sealer.votes = poll.votes + 1;
-                    sealerStates[pollAddresses[i]] = sealer;
+                    sealerStates[addNewPollAddresses[i]] = sealer;
                 }
-                delete(addNewPoll[pollAddresses[i]]);
-                pollAddresses[i] = pollAddresses[pollAddresses.length - 1];
-                --pollAddresses.length;
+                delete(addNewPoll[addNewPollAddresses[i]]);
+                addNewPollAddresses[i] = addNewPollAddresses[addNewPollAddresses.length - 1];
+                --addNewPollAddresses.length;
             }
-        } while (++i < pollAddresses.length);
+        } while (++i < addNewPollAddresses.length);
     }
 
     /// @dev Work in progress.
