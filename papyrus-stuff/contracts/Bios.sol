@@ -171,8 +171,7 @@ contract Bios is QueueHelper {
     /// Handle all pollings where time is up.
     /// @dev Anyone may call it.
     function handleClosedPolls() public {
-        uint i = 0; 
-        do {
+        for (uint i = 0; i < addNewPollAddresses.length; ++i) {
             NewAuthorityPollStatus storage poll = addNewPoll[addNewPollAddresses[i]];
             if (poll.closeTime <= now) {
                 if (poll.votes >= kMinWinVotes) {
@@ -183,16 +182,31 @@ contract Bios is QueueHelper {
                     sealerStates[addNewPollAddresses[i]] = sealer;
                 }
                 delete(addNewPoll[addNewPollAddresses[i]]);
-                addNewPollAddresses[i] = addNewPollAddresses[addNewPollAddresses.length - 1];
-                --addNewPollAddresses.length;
             }
-        } while (++i < addNewPollAddresses.length);
-    }
-
-    /// @dev Work in progress.
-    function removeSealer(uint i) public {
-        delete(sealerStates[sealers[i]]);
-        sealers[i] = sealers[sealers.length - 1];
-        sealers.length --;
+            delete(addNewPollAddresses);
+        }
+        // Repeat for authority blacklist poll. Wish Solidity had pointers.
+        for (uint i = 0; i < authorityBlacklistPollAddresses.length; ++i) {
+            address candidat = authorityBlacklistPollAddresses[i];
+            AuthorityBlacklistPollStatus storage poll = 
+                authorityBlacklistPoll[candidat];
+            if (poll.closeTime <= now) {
+                if (poll.votes >= sealers.length / 2) {
+                    authorityBlackList[candidat] = true;
+                    if (sealerStates[candidat].votes != 0) {
+                        delete(sealerStates[candidat]);
+                        for (uint j = 0; j < sealers.length; ++j) {
+                            if (sealers[j] == candidat) {
+                                sealers[j] = sealers[sealers.length - 1];
+                                --sealers.length;
+                            break;
+                            }
+                        }
+                    }
+                }
+                delete(authorityBlacklistPoll[authorityBlacklistPollAddresses[i]]);
+            }
+            delete(authorityBlacklistPollAddresses);
+        }
     }
 }
