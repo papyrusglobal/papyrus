@@ -97,7 +97,9 @@ func FetchLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64, rw b
 		stakeAbs := new(big.Int).SetBytes(status[:])
 		stakeGas := new(big.Int).Mul(stakeAbs, big.NewInt(int64(blockGasLimit)))
 		limit = new(big.Int).Div(stakeGas, totalStake).Uint64()
-		log.Warn("/// fetchLimit set", "limit", limit, "account", acc, "rw", rw)
+		log.Warn("/// fetchLimit set", "limit", limit, "account", acc, "rw", rw,
+			"status", status, "stakeAbs", stakeAbs,
+			"blockGasLimit", blockGasLimit)
 		if rw {
 			state.SetLimit(acc, limit)
 		}
