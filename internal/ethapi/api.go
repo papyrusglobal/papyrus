@@ -681,13 +681,14 @@ func (s *PublicBlockChainAPI) GetStorageAt(ctx context.Context, address common.A
 	return res[:], state.Error()
 }
 
-func (s *PublicBlockChainAPI) GetStaked(ctx context.Context, address common.Address) (hexutil.Bytes, error) {
+// GetStaked returns staked abount for the given address.
+func (s *PublicBlockChainAPI) GetStaked(ctx context.Context, address common.Address) (big.Int, error) {
 	state, _, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
 	if state == nil || err != nil {
-		return nil, err
+		return *big.NewInt(0), err
 	}
 	res := core.GetStaked(address, state)
-	return res[:], state.Error()
+	return res, state.Error()
 }
 
 // CallArgs represents the arguments for a call.

@@ -51,17 +51,30 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 	}
 }
 
-// BiosAddress - address of the Bios contract that keeps staking values.
-var BiosAddress = common.HexToAddress("0x0000000000000000000000000000000000000022")
+// VersionerAddress - address of the Versioner contract that locates current Bios contract.
+var VersionerAddress = common.HexToAddress("0x0000000000000000000000000000000000000022")
+
+func getBiosAddress(state vm.StateDB) common.Address {
+	data := state.GetState(VersionerAddress, common.Hash{})
+	var addr common.Address
+	addr.SetBytes(data[:])
+	return addr
+}
 
 // GetStaked returns currently staked value by the given address.
-func GetStaked(sender common.Address, state vm.StateDB) common.Hash {
+func GetStaked(sender common.Address, state vm.StateDB) big.Int {
+	biosAddress := getBiosAddress(state)
+	if biosAddress == (common.Address{}) {
+		return *big.NewInt(0)
+	}
 	disposition := make([]byte, 64)
 	copy(disposition[12:32], sender[:])
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(disposition)
 	hash := hex.EncodeToString(hasher.Sum(nil))
-	return state.GetState(BiosAddress, common.HexToHash(hash))
+	data := state.GetState(biosAddress, common.HexToHash(hash))
+	return *new(big.Int).SetBytes(data[:])
+
 }
 
 // signersOffset is the offset of signers array in Bios contract storage
@@ -72,13 +85,17 @@ var signersLenOffset = common.HexToHash("000000000000000000000000000000000000000
 
 // GetSigners fetches signers list from the Bios contract.
 func GetSigners(state vm.StateDB) []common.Address {
-	lenSlot := state.GetState(BiosAddress, signersLenOffset)
+	biosAddress := getBiosAddress(state)
+	if biosAddress == (common.Address{}) {
+		return nil
+	}
+	lenSlot := state.GetState(biosAddress, signersLenOffset)
 	len := new(big.Int).SetBytes(lenSlot[:]).Uint64()
 	log.Warn("/// signers", "len", len)
 	signers := make([]common.Address, len)
 	for i := range signers {
 		addressSlot := state.GetState(
-			BiosAddress,
+			biosAddress,
 			common.BigToHash(new(big.Int).Add(signersArrayOffset, big.NewInt(int64(i)))))
 		signers[i] = common.BytesToAddress(addressSlot[:])
 		log.Warn("/// signers", "next", signers[i])
@@ -90,16 +107,18 @@ func GetSigners(state vm.StateDB) []common.Address {
 // is not set yet, but the stake exists, calculates initial limit. If allowed
 // (rw), sets the account limit to the value.
 func FetchLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64, rw bool) uint64 {
+	biosAddress := getBiosAddress(state)
+	if biosAddress == (common.Address{}) {
+		return 0
+	}
 	limit := state.GetLimit(acc)
-	totalStake := state.GetBalance(BiosAddress)
+	totalStake := state.GetBalance(biosAddress)
 	if limit == 0 && totalStake.Sign() == 1 {
-		status := GetStaked(acc, state)
-		stakeAbs := new(big.Int).SetBytes(status[:])
-		stakeGas := new(big.Int).Mul(stakeAbs, big.NewInt(int64(blockGasLimit)))
+		stake := GetStaked(acc, state)
+		stakeGas := new(big.Int).Mul(&stake, big.NewInt(int64(blockGasLimit)))
 		limit = new(big.Int).Div(stakeGas, totalStake).Uint64()
 		log.Warn("/// fetchLimit set", "limit", limit, "account", acc, "rw", rw,
-			"status", status, "stakeAbs", stakeAbs,
-			"blockGasLimit", blockGasLimit)
+			"stake", stake, "blockGasLimit", blockGasLimit)
 		if rw {
 			state.SetLimit(acc, limit)
 		}
@@ -108,7 +127,11 @@ func FetchLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64, rw b
 }
 
 func checkStaked(tx *types.Transaction, state *state.StateDB, header *types.Header) bool {
-	if from := tx.To(); from != nil && *from == BiosAddress {
+	biosAddress := getBiosAddress(state)
+	if biosAddress == (common.Address{}) {
+		return true
+	}
+	if from := tx.To(); from != nil && *from == biosAddress {
 		log.Warn("/// Papyrus tx allowed")
 		return true
 	}

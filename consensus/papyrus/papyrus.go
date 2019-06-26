@@ -514,7 +514,6 @@ func (c *Papyrus) verifySeal(chain consensus.ChainReader, header *types.Header, 
 // Prepare implements consensus.Engine, preparing all the consensus fields of the
 // header for running the transactions on top.
 func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) error {
-	/// debug.PrintStack()
 	// If the block isn't a checkpoint, cast a random vote (good enough for now)
 	header.Coinbase = common.Address{}
 	header.Nonce = types.BlockNonce{}
@@ -562,13 +561,8 @@ func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, st
 	number := header.Number.Uint64()
 	coinbase, err := c.Author(header)
 	if err == nil {
-		log.Warn("/// Block reward", "block", number,
-			"coinbase", coinbase)
 		state.AddBalance(coinbase, big.NewInt(1))
 	} else {
-		log.Warn("/// Block reward", "block", number,
-			"coinbase", c.signer,
-			"err", err)
 		if c.signer != (common.Address{}) {
 			state.AddBalance(c.signer, big.NewInt(1))
 		}

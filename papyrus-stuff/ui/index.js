@@ -1,7 +1,19 @@
-const biosAddress = '0x0000000000000000000000000000000000000022';
+const versionerAddress = '0x0000000000000000000000000000000000000022';
+const versionerAbi = [
+  {
+    constant: true,
+    inputs: [],
+    name: 'bios',
+    outputs: [{ name: '', type: 'address' }],
+    payable:false,
+    stateMutability: 'view',
+    type: 'function'
+  }
+];
 // const gatewayUrl = 'http://148.251.152.112:18545/';  // head.papyrus.network:localtest
 // const biosAddress = '0x142ac51e2b05a107c1482f4832b73c5bc55b6fd5'; // @rinkeby
 // const gatewayUrl = 'http://148.251.152.112:52545/';  // head.papyrus.network:testnet
+const zeroAddress = '0x0000000000000000000000000000000000000000';
 const ether = 10 ** 18;
 let contract;
 let account;
@@ -27,14 +39,18 @@ async function init() {
   text('balance', balance);
   text('balance_eth', balance / ether);
 
-  contract = new web3.eth.Contract(abi, biosAddress);
-  text('version', await contract.methods.version().call({ from: account }));
+  const versioner = new web3.eth.Contract(versionerAbi, versionerAddress);
+  const biosAddress = await versioner.methods.bios().call({ from: account });
   text('address', biosAddress);
-  text('all-stakes', await web3.eth.getBalance(biosAddress));
-  text('stake', await contract.methods.stakes(account).call({ from: account }));
+  if (biosAddress === zeroAddress) {
+    return;
+  }
 
-  const limit = await getLimit();
-  text('limit', limit.result);
+  contract = new web3.eth.Contract(abi, biosAddress);
+  text('version', contract.methods.version().call({ from: account }));
+  text('all-stakes', web3.eth.getBalance(biosAddress));
+  text('stake', contract.methods.stakes(account).call({ from: account }));
+  text('limit', new Promise(async resolve => resolve((await getLimit()).result)));
 }
 
 async function onStake() {
@@ -112,6 +128,6 @@ function show(id, flag) {
     (flag === undefined || flag) ? 'inherit' : 'none';
 }
 
-function text(id, text) {
-  document.getElementById(id).innerText = text;
+async function text(id, promise) {
+  document.getElementById(id).innerText = await promise;
 }

@@ -57,9 +57,13 @@ Setup
     * withdraw the melted amount if it "freeze gap" has elapsed since you
       melted this amount - click on `withdraw`.
 
-5.  To get the current limit of some account, run
+5.  To get the current limit of some account, run either
 
         echo '{"jsonrpc":"2.0","method":"eth_getLimit","params":["0x24b8fb159ef175c5d17cb883f87b6ca0699b56b6", "latest"],"id":1}' | nc -Uq0 data.1/geth.ipc
+
+    or
+
+        curl -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_getLimit","params":["0x24b8fb159ef175c5d17cb883f87b6ca0699b56b6", "latest"],"id":1}' http://localhost:18545
 
     This command queries the limit of account with address
     `0x24b8fb159ef175c5d17cb883f87b6ca0699b56b6` from the first (`data.1`) node.

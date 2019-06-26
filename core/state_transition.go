@@ -158,12 +158,20 @@ func (st *StateTransition) isCall() bool {
 	return st.state.GetBalance(st.msg.From()).Cmp(bmath.MaxBig256) == 0
 }
 
-func (st *StateTransition) isBios() bool {
+// isFree checks that the current transaction is unmetered:
+// 1. if it goes to the Versioner contract,
+// 2. if it goes to the current Bios contract,
+// 3. if the Versioner contract does not point to any Bios contract yet.
+func (st *StateTransition) isFree() bool {
 	to := st.msg.To()
 	if to == nil {
 		return false
 	}
-	return *to == BiosAddress
+	biosAddress := getBiosAddress(st.state)
+	if biosAddress == (common.Address{}) {
+		return *to == VersionerAddress
+	}
+	return *to == biosAddress
 }
 
 func (st *StateTransition) buyGas() error {
@@ -185,7 +193,7 @@ func (st *StateTransition) buyGas() error {
 	/// if !st.msg.Unmetered() {
 	///	st.state.SubBalance(st.msg.From(), mgval)
 	/// }
-	if !st.isBios() {
+	if !st.isFree() {
 		log.Warn("/// buyGas taking limit", "from", st.msg.From(), "to", st.msg.To(),
 			"gas", st.msg.Gas(), "limit", st.state.GetLimit(st.msg.From()))
 		st.state.SubLimit(st.msg.From(), st.msg.Gas())
@@ -272,7 +280,7 @@ func (st *StateTransition) refundGas() {
 	/// if !st.msg.Unmetered() {
 	/// remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 	/// st.state.AddBalance(st.msg.From(), remaining)
-	if !st.isBios() {
+	if !st.isFree() {
 		st.state.AddLimit(st.msg.From(), st.gas)
 	}
 
