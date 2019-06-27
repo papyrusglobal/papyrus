@@ -38,6 +38,7 @@ async function init() {
   const balance = await web3.eth.getBalance(account);
   text('balance', balance);
   text('balance_eth', balance / ether);
+  text('limit', new Promise(async resolve => resolve((await getLimit()).result)));
 
   const versioner = new web3.eth.Contract(versionerAbi, versionerAddress);
   const biosAddress = await versioner.methods.bios().call({ from: account });
@@ -50,7 +51,6 @@ async function init() {
   text('version', contract.methods.version().call({ from: account }));
   text('all-stakes', web3.eth.getBalance(biosAddress));
   text('stake', contract.methods.stakes(account).call({ from: account }));
-  text('limit', new Promise(async resolve => resolve((await getLimit()).result)));
 }
 
 async function onStake() {

@@ -91,17 +91,17 @@ func GetSigners(state vm.StateDB) []common.Address {
 	}
 	lenSlot := state.GetState(biosAddress, signersLenOffset)
 	len := new(big.Int).SetBytes(lenSlot[:]).Uint64()
-	log.Warn("/// signers", "len", len)
 	signers := make([]common.Address, len)
 	for i := range signers {
 		addressSlot := state.GetState(
 			biosAddress,
 			common.BigToHash(new(big.Int).Add(signersArrayOffset, big.NewInt(int64(i)))))
 		signers[i] = common.BytesToAddress(addressSlot[:])
-		log.Warn("/// signers", "next", signers[i])
 	}
 	return signers
 }
+
+var blocksInAMeltingPeriod = big.NewInt(24 * 60 * 60 / 3 * 3) // 3 days, block per 3 sec
 
 // FetchLimit gets the current limit for the specified account. If the limit
 // is not set yet, but the stake exists, calculates initial limit. If allowed
@@ -116,7 +116,8 @@ func FetchLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64, rw b
 	if limit == 0 && totalStake.Sign() == 1 {
 		stake := GetStaked(acc, state)
 		stakeGas := new(big.Int).Mul(&stake, big.NewInt(int64(blockGasLimit)))
-		limit = new(big.Int).Div(stakeGas, totalStake).Uint64()
+		stakePeriod := new(big.Int).Mul(stakeGas, blocksInAMeltingPeriod)
+		limit = new(big.Int).Div(stakePeriod, totalStake).Uint64()
 		log.Warn("/// fetchLimit set", "limit", limit, "account", acc, "rw", rw,
 			"stake", stake, "blockGasLimit", blockGasLimit)
 		if rw {
@@ -126,16 +127,18 @@ func FetchLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64, rw b
 	return limit
 }
 
-func checkStaked(tx *types.Transaction, state *state.StateDB, header *types.Header) bool {
+func checkStaked(tx *types.Transaction, state *state.StateDB, header *types.Header, config *params.ChainConfig) bool {
 	biosAddress := getBiosAddress(state)
 	if biosAddress == (common.Address{}) {
+		log.Warn("/// All tx allowed")
 		return true
 	}
 	if from := tx.To(); from != nil && *from == biosAddress {
-		log.Warn("/// Papyrus tx allowed")
+		log.Warn("/// Bios tx allowed")
 		return true
 	}
-	sender, _ := types.Sender(types.HomesteadSigner{}, tx)
+	signer := types.MakeSigner(config, header.Number)
+	sender, _ := types.Sender(signer, tx)
 	limit := FetchLimit(sender, state, header.GasLimit, false)
 	unmetered := limit != 0
 	log.Warn("/// checkStaked", "block", header.Number, "unmetered", unmetered)
@@ -168,7 +171,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		tx.SetUnmetered(checkStaked(tx, statedb, header))
+		tx.SetUnmetered(checkStaked(tx, statedb, header, p.config))
 		receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err

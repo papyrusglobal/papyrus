@@ -163,13 +163,13 @@ func (st *StateTransition) isCall() bool {
 // 2. if it goes to the current Bios contract,
 // 3. if the Versioner contract does not point to any Bios contract yet.
 func (st *StateTransition) isFree() bool {
+	biosAddress := getBiosAddress(st.state)
+	if biosAddress == (common.Address{}) {
+		return true
+	}
 	to := st.msg.To()
 	if to == nil {
 		return false
-	}
-	biosAddress := getBiosAddress(st.state)
-	if biosAddress == (common.Address{}) {
-		return *to == VersionerAddress
 	}
 	return *to == biosAddress
 }
@@ -243,7 +243,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		vmerr error
 	)
 	log.Warn("/// evm", "sender", msg.From(), "to", msg.To(), "block", st.evm.BlockNumber,
-		"data", st.data, "gas", st.gas)
+		"gas", st.gas)
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value)
 	} else {

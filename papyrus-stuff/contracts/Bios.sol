@@ -1,6 +1,7 @@
 pragma solidity >=0.4.0 <0.6.0;
 
 
+import "./Versioner.sol";
 import "./QueueHelper.sol";
 
 
@@ -8,21 +9,20 @@ import "./QueueHelper.sol";
 /// @title Main consensus and staking contract.
 /// @dev Based on QueueHelper that brings queue implementation code.
 contract Bios is QueueHelper {
-    uint constant kFreezeStake = 5 seconds;  // time gap before withdrawing melted stake
-    uint constant kNewAuthorityPollTime = 1 minutes;
-    uint constant kBlacklistAuthorityPollTime = 1 minutes;
-    uint constant kMinWinVotes = 2;          // threshold votes for new authority
+    uint constant kFreezeStake = 3 minutes;  // time gap before withdrawing melted stake
+    uint constant kNewAuthorityPollTime = 5 minutes;
+    uint constant kBlacklistAuthorityPollTime = 5 minutes;
+    uint constant kMinWinVotes = 3;          // threshold votes for new authority
     uint constant kSealerBets = 7;           // bets each participant has
-    uint constant kFreezeBet = 1 minutes;
+    uint constant kFreezeBet = 2 minutes;    // time gap between updating the authority bet
 
     /// Public data shared with client code.
     mapping(address=>uint) public stakes;    // stakes map reside in slot #0
-    address[] public sealers;                // sealers array reside in slot #1
+    address[] sealers;                       // sealers array reside in slot #1
 
     /// Public contract state.
-    uint constant public version = 1;        // contract code version
+    uint constant public version = 2;        // contract code version
     mapping(address=>Queue) public melting;  // melting stakes queues
-    bool public initialized = false;         // function init() called
 
     /// Poll status for the new authority.
     struct NewAuthorityPollStatus {
@@ -30,7 +30,7 @@ contract Bios is QueueHelper {
         uint votes;
     }
     mapping(address=>NewAuthorityPollStatus) public addNewPoll;
-    address[] public addNewPollAddresses;
+    address[] addNewPollAddresses;
 
     /// Poll status for the authority blacklisting.
     struct AuthorityBlacklistPollStatus {
@@ -39,19 +39,30 @@ contract Bios is QueueHelper {
         mapping(address=>bool) voted;
     }
     mapping(address=>AuthorityBlacklistPollStatus) public authorityBlacklistPoll;
-    address[] public authorityBlacklistPollAddresses;
+    address[] authorityBlacklistPollAddresses;
 
     /// Poll state of the authority.
-    struct SealerState {
+    struct AuthorityState {
         uint votes;
         address[kSealerBets] bet;
-        uint[kSealerBets] betFrozenUntil;  // should be a struct, but UnimplementedFeatureError:
-                                           // Copying of type struct memory to storage not yet supported.
+        uint[kSealerBets] betFrozenUntil;  // should be a struct, but
+                                           // UnimplementedFeatureError:
+                                           // Copying of type struct memory to storage
+                                           // not yet supported.
     }
-    mapping(address=>SealerState) public sealerStates;
+    mapping(address=>AuthorityState) public authorityStates;
 
     /// Black lists
     mapping(address=>bool) public authorityBlackList;
+
+    constructor(address[] memory _sealers) public {
+        AuthorityState memory state;
+        state.votes = 1;
+        for (uint i = 0; i < _sealers.length; ++i) {
+            sealers.push(_sealers[i]);
+            authorityStates[_sealers[i]] = state;
+        }
+    }
 
     /// Stake the specified amount of money.
     /// @dev The value is on the contract account and thus inaccessible to the sender.
@@ -62,7 +73,7 @@ contract Bios is QueueHelper {
     }
 
     /// Unstake the specified value of money.
-    /// @dev The value is put to the melting queue and can be withdrawn after `freezeGap`.
+    /// @dev The value is put to the melting queue and can be withdrawn after `kFreezeStake`.
     /// @param val value to unstake.
     function melt(uint224 val) public {
         require(val != 0 && stakes[msg.sender] >= val, "not enough stake");
@@ -70,7 +81,7 @@ contract Bios is QueueHelper {
         stakes[msg.sender] -= val;
     }
 
-    /// Withdraw the previously unstaked amount of money provided the `freezeGap` time
+    /// Withdraw the previously unstaked amount of money provided the `kFreezeStake` time
     /// had passed since its unstake.
     /// @notice Every 'unstake' call must match 'withdraw' call.
     /// @dev Takes the latest melting queue element and transfers its money amount
@@ -83,7 +94,7 @@ contract Bios is QueueHelper {
     }
 
     /// Service function, calculates the number of queue elements (slots)
-    /// is aviable in the melting conveyer for the sender's account.
+    /// is available in the melting conveyer for the sender's account.
     /// @dev Every unstake call consumes a slot, every withdrawal releases it.
     function getFreeMeltingSlots() view public returns (uint8) {
         return QueueHelper.kQueueLen - QueueHelper.size(melting[msg.sender]);
@@ -98,41 +109,47 @@ contract Bios is QueueHelper {
         return (entry.stake, entry.timestamp);
     }
 
-    /// Service function, returns all melting convayer content.
-    /// @return array of melting stakes and array of their timestaps
+    /// Service function, returns all melting conveyer content.
+    /// @return array of melting stakes and array of their timestamps.
     function getMeltingSlots() view public returns (uint224[] memory, uint32[] memory) {
         return QueueHelper.all(melting[msg.sender]);
     }
 
-    /// @dev populate initial sealers
-    function init(address[] memory _sealers) public {
-        require(initialized == false);
-        SealerState memory sealerState;
-        sealerState.votes = 1;
-        for (uint i = 0; i < _sealers.length; ++i) {
-            sealers.push(_sealers[i]);
-            sealerStates[_sealers[i]] = sealerState;
-        }
-        initialized = true;
+    /// Service function to show all current authorities.
+    /// @return array of authority addresses.
+    function getAuthorities() public view returns (address[] memory) {
+        return sealers;
     }
 
-    /// Service function
-    /// @return array of addresses that participate in authority pools
+    /// Service function.
+    /// @return array of addresses that participate in authority pools.
     function getAddNewPollAddresses() public view returns (address[] memory) {
         return addNewPollAddresses;
     }
 
-    /// Service function
-    /// @return array of addresses that participate in blacklist authority pools
+    /// Service function.
+    /// @return array of addresses that participate in blacklist authority pools.
     function getAuthorityBlacklistPollAddresses() public view returns (address[] memory) {
         return authorityBlacklistPollAddresses;
+    }
+
+    /// Service function inspects authority bets.
+    /// @return votes number currently bet for this authority,
+    ///         and pair of arrays: bets and their frozen times.
+    function getAuthorityState(address authority)
+        public
+        view
+        returns (uint votes, address[kSealerBets] memory, uint[kSealerBets] memory)
+    {
+        AuthorityState storage state = authorityStates[authority];
+        return (state.votes, state.bet, state.betFrozenUntil);
     }
 
     /// Propose a poll for a new authority.
     /// @param participant - new authority address.
     function proposeNewAuthority(address participant) public {
-        require(sealerStates[msg.sender].votes != 0, "must be authority");
-        require(sealerStates[participant].votes == 0, "already authority");
+        require(authorityStates[msg.sender].votes != 0, "must be authority");
+        require(authorityStates[participant].votes == 0, "already authority");
         require(addNewPoll[participant].closeTime == 0, "already proposed");
         require(authorityBlackList[participant] == false, "in authority black list");
         addNewPoll[participant] = NewAuthorityPollStatus(now + kNewAuthorityPollTime, 0);
@@ -142,9 +159,11 @@ contract Bios is QueueHelper {
     /// Propose a poll for blacklisting the authority to the authority black list.
     /// @param participant - new authority address.
     function proposeBlacklistAuthority(address participant) public {
+        require(authorityStates[msg.sender].votes != 0, "must be authority");
         require(authorityBlacklistPoll[participant].closeTime == 0, "already proposed");
         require(authorityBlackList[participant] == false, "in authority black list");
-        authorityBlacklistPoll[participant] = AuthorityBlacklistPollStatus(now + kBlacklistAuthorityPollTime, 0);
+        authorityBlacklistPoll[participant] =
+            AuthorityBlacklistPollStatus(now + kBlacklistAuthorityPollTime, 0);
         authorityBlacklistPollAddresses.push(participant);
     }
 
@@ -155,7 +174,7 @@ contract Bios is QueueHelper {
         require(slot < kSealerBets, "slot too big");
         require(addNewPoll[participant].closeTime != 0, "no poll");
         require(addNewPoll[participant].closeTime > now, "poll closed");
-        SealerState storage state = sealerStates[msg.sender];
+        AuthorityState storage state = authorityStates[msg.sender];
         require(state.votes != 0, "must be sealer");
         require(state.betFrozenUntil[slot] < now, "bet frozen");
         for (uint i = 0; i < kSealerBets; i++) {
@@ -166,7 +185,7 @@ contract Bios is QueueHelper {
         if (addNewPoll[old].closeTime != 0) {
             addNewPoll[old].votes--;
         } else {
-            sealerStates[old].votes--;
+            authorityStates[old].votes--;
         }
         // Set new bet.
         state.bet[slot] = participant;
@@ -180,7 +199,7 @@ contract Bios is QueueHelper {
         require(authorityBlacklistPoll[participant].closeTime != 0, "no poll");
         require(authorityBlacklistPoll[participant].closeTime > now, "poll closed");
         require(authorityBlacklistPoll[participant].voted[msg.sender] == false, "already voted");
-        SealerState storage state = sealerStates[msg.sender];
+        AuthorityState storage state = authorityStates[msg.sender];
         require(state.votes != 0, "must be sealer");
         authorityBlacklistPoll[participant].voted[msg.sender] = true;
         authorityBlacklistPoll[participant].votes++;
@@ -189,32 +208,37 @@ contract Bios is QueueHelper {
     /// Handle all pollings where time is up.
     /// @dev Anyone may call it.
     function handleClosedPolls() public {
-        for (uint i = 0; i < addNewPollAddresses.length; ++i) {
+        uint i = 0;
+        while (i < addNewPollAddresses.length) {
             NewAuthorityPollStatus storage poll = addNewPoll[addNewPollAddresses[i]];
             if (poll.closeTime <= now) {
-                if (poll.votes >= kMinWinVotes) {
+                if (poll.votes >= kMinWinVotes || poll.votes == sealers.length) {
                     // TODO: shift out excess sealers.
                     sealers.push(addNewPollAddresses[i]);
-                    SealerState memory sealer;
+                    AuthorityState memory sealer;
                     sealer.votes = poll.votes + 1;
-                    sealerStates[addNewPollAddresses[i]] = sealer;
+                    authorityStates[addNewPollAddresses[i]] = sealer;
                 }
                 delete(addNewPoll[addNewPollAddresses[i]]);
+                addNewPollAddresses[i] = addNewPollAddresses[addNewPollAddresses.length - 1];
+                --addNewPollAddresses.length;
+            } else {
+                ++i;
             }
-            delete(addNewPollAddresses);
         }
-        // Repeat for authority blacklist poll. Wish Solidity had pointers.
-        for (uint i = 0; i < authorityBlacklistPollAddresses.length; ++i) {
-            address candidat = authorityBlacklistPollAddresses[i];
+        // Repeat for authority blacklist poll.
+        i = 0;
+        while (i < authorityBlacklistPollAddresses.length) {
+            address candidate = authorityBlacklistPollAddresses[i];
             AuthorityBlacklistPollStatus storage poll =
-                authorityBlacklistPoll[candidat];
+                authorityBlacklistPoll[candidate];
             if (poll.closeTime <= now) {
                 if (poll.votes >= sealers.length / 2) {
-                    authorityBlackList[candidat] = true;
-                    if (sealerStates[candidat].votes != 0) {
-                        delete(sealerStates[candidat]);
+                    authorityBlackList[candidate] = true;
+                    if (authorityStates[candidate].votes != 0) {
+                        delete(authorityStates[candidate]);
                         for (uint j = 0; j < sealers.length; ++j) {
-                            if (sealers[j] == candidat) {
+                            if (sealers[j] == candidate) {
                                 sealers[j] = sealers[sealers.length - 1];
                                 --sealers.length;
                             break;
@@ -223,8 +247,19 @@ contract Bios is QueueHelper {
                     }
                 }
                 delete(authorityBlacklistPoll[authorityBlacklistPollAddresses[i]]);
+                authorityBlacklistPollAddresses[i] =
+                    authorityBlacklistPollAddresses[authorityBlacklistPollAddresses.length - 1];
+                    --authorityBlacklistPollAddresses.length;
+            } else {
+                ++i;
             }
-            delete(authorityBlacklistPollAddresses);
         }
+    }
+
+    /// @dev debug function
+    function upgrade(address payable neo) public {
+        require(authorityStates[msg.sender].votes != 0, "must be authority");
+        Versioner(0x0000000000000000000000000000000000000022).upgrade(neo);
+        selfdestruct(neo);
     }
 }
