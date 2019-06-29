@@ -555,25 +555,28 @@ func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) err
 	return nil
 }
 
+var blockRewardForOne = int64(float64(1.5e18 / 47))
+
 // Finalize implements consensus.Engine, ensuring no uncles are set, nor block
 // rewards given, and returns the final block.
 func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	number := header.Number.Uint64()
-	coinbase, err := c.Author(header)
-	if err == nil {
-		state.AddBalance(coinbase, big.NewInt(1))
-	} else {
-		if c.signer != (common.Address{}) {
-			state.AddBalance(c.signer, big.NewInt(1))
-		}
-	}
-
 	// Update signers from Bios contract
+	number := header.Number.Uint64()
 	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {
 		log.Warn("/// Finalize could not find snapshot for", "block", number, "err", err)
 	} else {
 		snap.Next = core.GetSigners(state)
+	}
+
+	blockReward := big.NewInt(blockRewardForOne * int64(len(snap.Signers)))
+	coinbase, err := c.Author(header)
+	if err == nil {
+		state.AddBalance(coinbase, blockReward)
+	} else {
+		if c.signer != (common.Address{}) {
+			state.AddBalance(c.signer, blockReward)
+		}
 	}
 
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
