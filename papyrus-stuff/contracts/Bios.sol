@@ -9,7 +9,7 @@ import "./QueueHelper.sol";
 /// @title Main consensus and staking contract.
 /// @dev Based on QueueHelper that brings queue implementation code.
 contract Bios is QueueHelper {
-    uint constant kFreezeStake = 3 minutes;  // time gap before withdrawing melted stake
+    uint constant kFreezeStake = 10 minutes; // time gap before withdrawing melted stake
     uint constant kNewAuthorityPollTime = 5 minutes;
     uint constant kBlacklistAuthorityPollTime = 5 minutes;
     uint constant kMinWinVotes = 3;          // threshold votes for new authority
