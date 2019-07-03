@@ -4,9 +4,36 @@ Bios smart contract
 Compile
 -------
 
-    solc --bin-runtime --optimize contracts/Bios.sol
+    solc --bin-runtime --optimize contracts/Versioner.sol
 
 and put the resulting binary data to config/genesis.json.
+
+
+Bios upgrade and Versioner contract
+-----------------------------------
+
+To track the current address of the Bios contract, there is a
+[Versioner](Versioner.sol) contract located at fixed address
+0x0000000000000000000000000000000000000022. To query it for the Bios contract
+address, use `bios` public method. Here is an example in javascript:
+
+    const versionerAbi = [
+      {
+        constant: true,
+        inputs: [],
+        name: 'bios',
+        outputs: [{ name: '', type: 'address' }],
+        payable:false,
+        stateMutability: 'view',
+        type: 'function'
+      }
+    ];
+    const versionerAddress = '0x0000000000000000000000000000000000000022';
+    const versioner = new web3.eth.Contract(versionerAbi, versionerAddress);
+    const biosAddress = await versioner.methods.bios().call({ from: account });
+
+Note that the resulting address may be zero, this means that the Bios contract
+is not yet installed.
 
 
 Storage
