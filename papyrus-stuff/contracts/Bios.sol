@@ -1,14 +1,15 @@
-pragma solidity >=0.4.0 <0.6.0;
+pragma solidity 0.5.1;
 
 
 import "./Versioner.sol";
 import "./QueueHelper.sol";
+import "./Ownable.sol";
 
 
 /// @author The Papyrus team.
 /// @title Main consensus and staking contract.
 /// @dev Based on QueueHelper that brings queue implementation code.
-contract Bios is QueueHelper {
+contract Bios is QueueHelper, Ownable {
     uint constant kFreezeStake = 10 minutes; // time gap before withdrawing melted stake
     uint constant kNewAuthorityPollTime = 5 minutes;
     uint constant kBlacklistAuthorityPollTime = 5 minutes;
