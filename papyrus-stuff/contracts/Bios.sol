@@ -214,11 +214,7 @@ contract Bios is QueueHelper, Ownable {
             NewAuthorityPollStatus storage poll = addNewPoll[addNewPollAddresses[i]];
             if (poll.closeTime <= now) {
                 if (poll.votes >= kMinWinVotes || poll.votes == sealers.length) {
-                    // TODO: shift out excess sealers.
-                    sealers.push(addNewPollAddresses[i]);
-                    AuthorityState memory sealer;
-                    sealer.votes = poll.votes + 1;
-                    authorityStates[addNewPollAddresses[i]] = sealer;
+                    addNewAuthority(addNewPollAddresses[i], poll.votes + 1);
                 }
                 delete(addNewPoll[addNewPollAddresses[i]]);
                 addNewPollAddresses[i] = addNewPollAddresses[addNewPollAddresses.length - 1];
@@ -235,17 +231,7 @@ contract Bios is QueueHelper, Ownable {
                 authorityBlacklistPoll[candidate];
             if (poll.closeTime <= now) {
                 if (poll.votes >= sealers.length / 2) {
-                    authorityBlackList[candidate] = true;
-                    if (authorityStates[candidate].votes != 0) {
-                        delete(authorityStates[candidate]);
-                        for (uint j = 0; j < sealers.length; ++j) {
-                            if (sealers[j] == candidate) {
-                                sealers[j] = sealers[sealers.length - 1];
-                                --sealers.length;
-                            break;
-                            }
-                        }
-                    }
+                    blacklistAuthority(candidate);
                 }
                 delete(authorityBlacklistPoll[authorityBlacklistPollAddresses[i]]);
                 authorityBlacklistPollAddresses[i] =
@@ -262,5 +248,39 @@ contract Bios is QueueHelper, Ownable {
         require(authorityStates[msg.sender].votes != 0, "must be authority");
         Versioner(0x0000000000000000000000000000000000000022).upgrade(neo);
         selfdestruct(neo);
+    }
+    
+    function ownerAddNewAuthority(address candidate) public onlyOwner {
+        addNewAuthority(candidate, 1);
+    }
+    
+    function ownerBlacklistAuthority(address candidate) public onlyOwner {
+        blacklistAuthority(candidate);
+    }
+    
+    function ownerRemoveFromBlacklist(address candidate) public onlyOwner {
+        authorityBlackList[candidate] = false; 
+    }
+    
+    function addNewAuthority(address authority, uint votes) private {
+        // TODO: shift out excess sealers.
+        sealers.push(authority);
+        AuthorityState memory sealer;
+        sealer.votes = votes;
+        authorityStates[authority] = sealer;        
+    }
+    
+    function blacklistAuthority(address candidate) private {
+        authorityBlackList[candidate] = true;
+        if (authorityStates[candidate].votes != 0) {
+            delete(authorityStates[candidate]);
+            for (uint j = 0; j < sealers.length; ++j) {
+                if (sealers[j] == candidate) {
+                    sealers[j] = sealers[sealers.length - 1];
+                    --sealers.length;
+                break;
+                }
+            }
+        }
     }
 }
