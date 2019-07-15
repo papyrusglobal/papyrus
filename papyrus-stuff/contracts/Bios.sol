@@ -1,6 +1,7 @@
 pragma solidity 0.5.1;
 
 
+import "./BiosHeader.sol";
 import "./Versioner.sol";
 import "./QueueHelper.sol";
 import "./Ownable.sol";
@@ -9,17 +10,13 @@ import "./Ownable.sol";
 /// @author The Papyrus team.
 /// @title Main consensus and staking contract.
 /// @dev Based on QueueHelper that brings queue implementation code.
-contract Bios is QueueHelper, Ownable {
+contract Bios is BiosHeader, QueueHelper, Ownable {
     uint constant kFreezeStake = 10 minutes; // time gap before withdrawing melted stake
     uint constant kNewAuthorityPollTime = 5 minutes;
     uint constant kBlacklistAuthorityPollTime = 5 minutes;
     uint constant kMinWinVotes = 3;          // threshold votes for new authority
     uint constant kSealerBets = 7;           // bets each participant has
     uint constant kFreezeBet = 2 minutes;    // time gap between updating the authority bet
-
-    /// Public data shared with client code.
-    mapping(address=>uint) public stakes;    // stakes map reside in slot #0
-    address[] sealers;                       // sealers array reside in slot #1
 
     /// Public contract state.
     uint constant public version = 2;        // contract code version
@@ -249,27 +246,27 @@ contract Bios is QueueHelper, Ownable {
         Versioner(0x0000000000000000000000000000000000000022).upgrade(neo);
         selfdestruct(neo);
     }
-    
+
     function ownerAddNewAuthority(address candidate) public onlyOwner {
         addNewAuthority(candidate, 1);
     }
-    
+
     function ownerBlacklistAuthority(address candidate) public onlyOwner {
         blacklistAuthority(candidate);
     }
-    
+
     function ownerRemoveFromBlacklist(address candidate) public onlyOwner {
-        authorityBlackList[candidate] = false; 
+        authorityBlackList[candidate] = false;
     }
-    
+
     function addNewAuthority(address authority, uint votes) private {
         // TODO: shift out excess sealers.
         sealers.push(authority);
         AuthorityState memory sealer;
         sealer.votes = votes;
-        authorityStates[authority] = sealer;        
+        authorityStates[authority] = sealer;
     }
-    
+
     function blacklistAuthority(address candidate) private {
         authorityBlackList[candidate] = true;
         if (authorityStates[candidate].votes != 0) {
