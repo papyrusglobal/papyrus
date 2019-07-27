@@ -8,7 +8,7 @@
     "eip158Block": 3,
     "byzantiumBlock": 4,
     "papyrus": {
-      "period": 2,
+      "period": 6,
       "epoch": 30000
    }
   },
