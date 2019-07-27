@@ -49,7 +49,8 @@ $GETH2 --verbosity 5 \
        --ethstats='Local-Papyrus-test-2:papyrus@localhost:4000' \
        >log.2 2>&1 &
 
-$GETH3 --verbosity 5 \
+./runstopped.sh \
+    $GETH3 --verbosity 5 \
        --port 31303 \
        --networkid=323138 \
        --syncmode='full' \
