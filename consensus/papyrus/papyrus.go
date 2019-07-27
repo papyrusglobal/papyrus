@@ -566,7 +566,30 @@ func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, st
 	if err != nil {
 		log.Warn("/// Finalize could not find snapshot for", "block", number, "err", err)
 	} else {
+		log.Warn("/// Finalize update next signers for", "block", number)
 		snap.Next = core.GetSigners(state)
+		if len(snap.Signers) != len(snap.Next) && len(snap.Next) != 0 {
+			next := make(map[common.Address]struct{})
+			for _, authority := range snap.Next {
+				if _, ok := snap.Signers[authority]; ok {
+					next[authority] = struct{}{}
+				} else {
+					log.Warn("/// Finalize found new",
+						"authority", authority)
+					header.Coinbase = authority
+					copy(header.Nonce[:], nonceAuthVote)
+				}
+			}
+			for authority := range snap.Signers {
+				if _, ok := next[authority]; !ok {
+					log.Warn("/// Finalize found missing",
+						"authority", authority, "len", len(next))
+					header.Coinbase = authority
+					copy(header.Nonce[:], nonceDropVote)
+				}
+			}
+		}
+
 	}
 
 	blockReward := big.NewInt(blockRewardForOne * int64(len(snap.Signers)))

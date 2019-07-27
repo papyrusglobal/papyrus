@@ -160,7 +160,23 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 		}
 		snap.Recents[number] = signer
 
-		if len(snap.Next) > 0 {
+		var authorize bool
+		switch {
+		case bytes.Equal(header.Nonce[:], nonceAuthVote):
+			authorize = true
+		case bytes.Equal(header.Nonce[:], nonceDropVote):
+			authorize = false
+		default:
+			return nil, errInvalidVote
+		}
+
+		if header.Coinbase != (common.Address{}) {
+			if authorize {
+				snap.Signers[header.Coinbase] = struct{}{}
+			} else {
+				delete(snap.Signers, header.Coinbase)
+			}
+		} else if len(snap.Next) > 0 {
 			snap.Signers = make(map[common.Address]struct{})
 			for _, signer := range snap.Next {
 				snap.Signers[signer] = struct{}{}
