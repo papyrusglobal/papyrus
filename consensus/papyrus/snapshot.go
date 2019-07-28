@@ -154,7 +154,8 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 		}
 		for _, recent := range snap.Recents {
 			if recent == signer {
-				log.Warn("/// recents", "snap", snap)
+				log.Warn("/// recents", "snap", snap,
+					"num", number, "signer", signer)
 				return nil, errRecentlySigned
 			}
 		}
@@ -175,6 +176,10 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 				snap.Signers[header.Coinbase] = struct{}{}
 			} else {
 				delete(snap.Signers, header.Coinbase)
+				// Signer list shrunk, delete any leftover recent caches
+				if limit := uint64(len(snap.Signers)/2 + 1); number >= limit {
+					delete(snap.Recents, number-limit)
+				}
 			}
 		} else if len(snap.Next) > 0 {
 			snap.Signers = make(map[common.Address]struct{})
