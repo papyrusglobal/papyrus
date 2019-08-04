@@ -74,7 +74,6 @@ func GetStaked(sender common.Address, state vm.StateDB) big.Int {
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	data := state.GetState(biosAddress, common.HexToHash(hash))
 	return *new(big.Int).SetBytes(data[:])
-
 }
 
 // signersOffset is the offset of signers array in Bios contract storage
@@ -91,35 +90,50 @@ func GetSigners(state vm.StateDB) []common.Address {
 	}
 	lenSlot := state.GetState(biosAddress, signersLenOffset)
 	len := new(big.Int).SetBytes(lenSlot[:]).Uint64()
+	log.Warn("/// GetSigners", "len", lenSlot)
 	signers := make([]common.Address, len)
 	for i := range signers {
 		addressSlot := state.GetState(
 			biosAddress,
 			common.BigToHash(new(big.Int).Add(signersArrayOffset, big.NewInt(int64(i)))))
 		signers[i] = common.BytesToAddress(addressSlot[:])
+		log.Warn("/// GetSigners", "signer", signers[i])
 	}
 	return signers
 }
 
-var blocksInAMeltingPeriod = big.NewInt(24 * 60 * 60 / 3 * 3) // 3 days, block per 3 sec
+const blockInterval = 6                                 // block mine every n seconds
+const BlocksInRefreshPeriod = /*60*/ 60 / blockInterval // blocks in an hour
+const RefreshsInAMeltingPeriod = 24 * 3                 // hours in 3 days
+
+var blocksInRefreshPeriodBig = big.NewInt(BlocksInRefreshPeriod)
+
+// CalculateLimit returns limit for the specified account for the duration of
+// refresh period.
+func CalculateLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64) uint64 {
+	biosAddress := getBiosAddress(state)
+	if biosAddress == (common.Address{}) {
+		return 0
+	}
+	totalStake := state.GetBalance(biosAddress)
+	if totalStake.Sign() == 0 {
+		return 0
+	}
+	stake := GetStaked(acc, state)
+	stakeGas := new(big.Int).Mul(&stake, big.NewInt(int64(blockGasLimit)))
+	stakePeriod := new(big.Int).Mul(stakeGas, blocksInRefreshPeriodBig)
+	return new(big.Int).Div(stakePeriod, totalStake).Uint64()
+}
 
 // FetchLimit gets the current limit for the specified account. If the limit
 // is not set yet, but the stake exists, calculates initial limit. If allowed
 // (rw), sets the account limit to the value.
 func FetchLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64, rw bool) uint64 {
-	biosAddress := getBiosAddress(state)
-	if biosAddress == (common.Address{}) {
-		return 0
-	}
 	limit := state.GetLimit(acc)
-	totalStake := state.GetBalance(biosAddress)
-	if limit == 0 && totalStake.Sign() == 1 {
-		stake := GetStaked(acc, state)
-		stakeGas := new(big.Int).Mul(&stake, big.NewInt(int64(blockGasLimit)))
-		stakePeriod := new(big.Int).Mul(stakeGas, blocksInAMeltingPeriod)
-		limit = new(big.Int).Div(stakePeriod, totalStake).Uint64()
+	if limit == 0 {
+		limit = CalculateLimit(acc, state, blockGasLimit)
 		log.Warn("/// fetchLimit set", "limit", limit, "account", acc, "rw", rw,
-			"stake", stake, "blockGasLimit", blockGasLimit)
+			"blockGasLimit", blockGasLimit)
 		if rw {
 			state.SetLimit(acc, limit)
 		}
@@ -161,9 +175,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 
 		gp = new(GasPool).AddGas(block.GasLimit())
 	)
-	/// papyrus := p.engine.(*papyrus.Papyrus)
-	/// papyrus.SetSigners(GetSigners(statedb))
-
 	// Mutate the block and state according to any hard-fork specs
 	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
 		misc.ApplyDAOHardFork(statedb)
@@ -203,6 +214,12 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, 0, err
+	}
+	if tx.To() != nil {
+		biosAddress := getBiosAddress(statedb)
+		if *tx.To() == biosAddress {
+			FetchLimit(msg.From(), statedb, header.GasLimit, true)
+		}
 	}
 	// Update the state with pending changes
 	var root []byte

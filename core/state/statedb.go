@@ -522,6 +522,14 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 	}
 }
 
+// ForEachAccount enumerates every account currently known to this node.
+func (db *StateDB) ForEachAccount(cb func(common.Address)) {
+	it := trie.NewIterator(db.trie.NodeIterator(nil))
+	for it.Next() {
+		cb(common.BytesToAddress(db.trie.GetKey(it.Key)))
+	}
+}
+
 // Copy creates a deep, independent copy of the state.
 // Snapshots of the copied state cannot be applied to the copy.
 func (self *StateDB) Copy() *StateDB {

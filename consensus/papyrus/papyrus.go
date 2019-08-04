@@ -583,13 +583,35 @@ func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, st
 			for authority := range snap.Signers {
 				if _, ok := next[authority]; !ok {
 					log.Warn("/// Finalize found missing",
-						"authority", authority, "len", len(next))
+						"authority", authority, "len", len(next),
+						"number", number)
 					header.Coinbase = authority
 					copy(header.Nonce[:], nonceDropVote)
 				}
 			}
 		}
 
+	}
+
+	if number%core.BlocksInRefreshPeriod == 0 {
+		state.ForEachAccount(func(acc common.Address) {
+			delta := core.CalculateLimit(acc, state, header.GasLimit)
+			if delta > 0 {
+				limit := state.GetLimit(acc)
+				log.Warn("/// Hourly update limits", "delta", delta,
+					"limit", limit, "acc", acc)
+				var maxLimit = delta * core.RefreshsInAMeltingPeriod
+				if delta+limit < maxLimit {
+					state.AddLimit(acc, delta)
+					log.Warn("/// %%% Updated to",
+						"limit", state.GetLimit(acc), "acc", acc)
+				} else if limit < maxLimit {
+					state.SetLimit(acc, maxLimit)
+					log.Warn("/// %%% Updated till",
+						"limit", state.GetLimit(acc), "acc", acc)
+				}
+			}
+		})
 	}
 
 	blockReward := big.NewInt(blockRewardForOne * int64(len(snap.Signers)))

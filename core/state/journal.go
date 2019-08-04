@@ -103,6 +103,10 @@ type (
 		account *common.Address
 		prev    *big.Int
 	}
+	limitChange struct {
+		account *common.Address
+		prev    uint64
+	}
 	nonceChange struct {
 		account *common.Address
 		prev    uint64
@@ -176,6 +180,14 @@ func (ch balanceChange) revert(s *StateDB) {
 }
 
 func (ch balanceChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch limitChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setLimit(ch.prev)
+}
+
+func (ch limitChange) dirtied() *common.Address {
 	return ch.account
 }
 

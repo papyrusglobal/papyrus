@@ -373,6 +373,14 @@ func (self *stateObject) SubLimit(amount uint64) {
 }
 
 func (self *stateObject) SetLimit(limit uint64) {
+	self.db.journal.append(limitChange{
+		account: &self.address,
+		prev:    self.data.Limit,
+	})
+	self.setLimit(limit)
+}
+
+func (self *stateObject) setLimit(limit uint64) {
 	self.data.Limit = limit
 }
 

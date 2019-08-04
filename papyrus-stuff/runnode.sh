@@ -10,7 +10,7 @@ if [[ ! "$NUM" =~ ^[1-9]+$ ]]; then
     exit 1
 fi
 
-GETH="${GOPATH:-~}/src/github.com/ethereum/go-ethereum/build/bin/geth --datadir=$DATADIR.$NUM"
+GETH="${FULLGETH} --datadir=$DATADIR.$NUM"
 if pgrep -f "$GETH"; then
     echo "The process is already running" >&2
     exit 2

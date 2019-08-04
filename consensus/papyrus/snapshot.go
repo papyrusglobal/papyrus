@@ -179,6 +179,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 				// Signer list shrunk, delete any leftover recent caches
 				if limit := uint64(len(snap.Signers)/2 + 1); number >= limit {
 					delete(snap.Recents, number-limit)
+					snap.Next = nil
 				}
 			}
 		} else if len(snap.Next) > 0 {
