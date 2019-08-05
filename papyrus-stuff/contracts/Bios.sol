@@ -21,6 +21,7 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
     /// Public contract state.
     uint constant public version = 2;        // contract code version
     mapping(address=>Queue) public melting;  // melting stakes queues
+    mapping(address=>address) public contractStakeOwner;
 
     /// Poll status for the new authority.
     struct NewAuthorityPollStatus {
@@ -70,6 +71,22 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
         stakes[msg.sender] += msg.value;
     }
 
+    /// Stake the specified amount of money to the given contract account.
+    /// @param contract_ the contract to stake for.
+    /// @dev The value is on the contract account and thus inaccessible to the sender.
+    /// @dev msg.value the value to be staked.
+    function freezeForContract(address contract_) payable public {
+        require(msg.value > 0);
+        uint32 size;
+        assembly { size := extcodesize(contract_) }
+        require(size > 0);
+        if (contractStakeOwner[contract_] == address(0)) {
+            contractStakeOwner[contract_] = msg.sender;
+        }
+        require(contractStakeOwner[contract_] == msg.sender);
+        stakes[contract_] += msg.value;    
+    }
+
     /// Unstake the specified value of money.
     /// @dev The value is put to the melting queue and can be withdrawn after `kFreezeStake`.
     /// @param val value to unstake.
@@ -77,6 +94,20 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
         require(val != 0 && stakes[msg.sender] >= val, "not enough stake");
         QueueHelper.push(melting[msg.sender], Entry(val, uint32(now)));
         stakes[msg.sender] -= val;
+    }
+    
+    /// Unstake the specified value of money from the contract account.
+    /// @dev The value is put to the melting queue and can be withdrawn after `kFreezeStake`.
+    /// @param contract_ the contract to unstake from.
+    /// @param val value to unstake.
+    function meltFromContract(address contract_, uint224 val) public {
+        require(contractStakeOwner[contract_] == msg.sender);    
+        require(val != 0 && stakes[contract_] >= val, "not enough stake");
+        QueueHelper.push(melting[msg.sender], Entry(val, uint32(now)));
+        stakes[contract_] -= val;
+        if (stakes[contract_] == 0) {
+            delete(contractStakeOwner[contract_]);
+        }
     }
 
     /// Withdraw the previously unstaked amount of money provided the `kFreezeStake` time
