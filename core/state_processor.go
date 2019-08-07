@@ -17,10 +17,12 @@
 package core
 
 import (
+	"bytes"
 	"encoding/hex"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -196,6 +198,8 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	return receipts, allLogs, *usedGas, nil
 }
 
+var fnFreezeForContract = hexutil.MustDecode("0x3d0d42c0") // freezeForContract(address)
+
 // ApplyTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
@@ -218,7 +222,13 @@ func ApplyTransaction(config *params.ChainConfig, bc ChainContext, author *commo
 	if tx.To() != nil {
 		biosAddress := getBiosAddress(statedb)
 		if *tx.To() == biosAddress {
-			FetchLimit(msg.From(), statedb, header.GasLimit, true)
+			if len(msg.Data()) == 36 &&
+				bytes.Equal(msg.Data()[:4], fnFreezeForContract) {
+				FetchLimit(common.BytesToAddress(msg.Data()[4:36]),
+					statedb, header.GasLimit, true)
+			} else {
+				FetchLimit(msg.From(), statedb, header.GasLimit, true)
+			}
 		}
 	}
 	// Update the state with pending changes

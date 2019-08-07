@@ -59,6 +59,7 @@ type StateTransition struct {
 	data       []byte
 	state      vm.StateDB
 	evm        *vm.EVM
+	donor      common.Address
 }
 
 // Message represents a message sent to a contract.
@@ -120,6 +121,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 		value:    msg.Value(),
 		data:     msg.Data(),
 		state:    evm.StateDB,
+		donor:    common.Address{},
 	}
 }
 
@@ -174,16 +176,29 @@ func (st *StateTransition) isFree() bool {
 	return *to == biosAddress
 }
 
+func (st *StateTransition) whoPays() (common.Address, uint64) {
+	if st.msg.To() != nil && st.state.GetCodeSize(*st.msg.To()) != 0 {
+		donor := st.msg.To()
+		limit := st.state.GetLimit(*donor)
+		if limit > st.msg.Gas() {
+			return *donor, limit
+		}
+	}
+	donor := st.msg.From()
+	return donor, st.state.GetLimit(donor)
+}
+
 func (st *StateTransition) buyGas() error {
 	/// mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
 	/// if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 && !st.msg.Unmetered() {
-	limit := FetchLimit(st.msg.From(), st.state, st.evm.GasLimit, true)
+	donor, limit := st.whoPays()
+	st.donor = donor
 	if limit < st.msg.Gas() && !st.msg.Unmetered() && !st.isCall() {
 		return errInsufficientBalanceForGas
 	}
 	log.Warn("/// buyGas running", "from", st.msg.From(), "to", st.msg.To(),
-		"limit", st.state.GetLimit(st.msg.From()),
-		"unmetered", st.msg.Unmetered(), "isCall", st.isCall())
+		"limit", limit,
+		"unmetered", st.msg.Unmetered(), "isCall", st.isCall(), "data", st.msg.Data())
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
 	}
@@ -196,7 +211,7 @@ func (st *StateTransition) buyGas() error {
 	if !st.isFree() {
 		log.Warn("/// buyGas taking limit", "from", st.msg.From(), "to", st.msg.To(),
 			"gas", st.msg.Gas(), "limit", st.state.GetLimit(st.msg.From()))
-		st.state.SubLimit(st.msg.From(), st.msg.Gas())
+		st.state.SubLimit(donor, st.msg.Gas())
 	}
 	return nil
 }
@@ -281,7 +296,7 @@ func (st *StateTransition) refundGas() {
 	/// remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 	/// st.state.AddBalance(st.msg.From(), remaining)
 	if !st.isFree() {
-		st.state.AddLimit(st.msg.From(), st.gas)
+		st.state.AddLimit(st.donor, st.gas)
 	}
 
 	// Also return remaining gas to the block gas counter so it is

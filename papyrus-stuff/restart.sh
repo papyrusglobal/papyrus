@@ -2,7 +2,8 @@
 cd $(dirname $0)
 . config/config.sh
 
-./stop.sh
+./stop.sh all
+rm -rf data.*
 ./runnode.sh 1 --mine
 ./runnode.sh 2 --mine
 ./runnode.sh 3 --mine

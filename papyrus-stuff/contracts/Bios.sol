@@ -84,7 +84,7 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
             contractStakeOwner[contract_] = msg.sender;
         }
         require(contractStakeOwner[contract_] == msg.sender);
-        stakes[contract_] += msg.value;    
+        stakes[contract_] += msg.value;
     }
 
     /// Unstake the specified value of money.
@@ -95,13 +95,13 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
         QueueHelper.push(melting[msg.sender], Entry(val, uint32(now)));
         stakes[msg.sender] -= val;
     }
-    
+
     /// Unstake the specified value of money from the contract account.
     /// @dev The value is put to the melting queue and can be withdrawn after `kFreezeStake`.
     /// @param contract_ the contract to unstake from.
     /// @param val value to unstake.
     function meltFromContract(address contract_, uint224 val) public {
-        require(contractStakeOwner[contract_] == msg.sender);    
+        require(contractStakeOwner[contract_] == msg.sender);
         require(val != 0 && stakes[contract_] >= val, "not enough stake");
         QueueHelper.push(melting[msg.sender], Entry(val, uint32(now)));
         stakes[contract_] -= val;
