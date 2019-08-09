@@ -188,7 +188,7 @@ func (st *StateTransition) buyGas() error {
 	if limit < st.msg.Gas() && !st.msg.Unmetered() && !st.isCall() {
 		return errInsufficientBalanceForGas
 	}
-	log.Warn("/// buyGas running", "from", st.msg.From(), "to", st.msg.To(),
+	log.Info("/// buyGas running", "from", st.msg.From(), "to", st.msg.To(),
 		"limit", limit,
 		"unmetered", st.msg.Unmetered(), "isCall", st.isCall(), "data", st.msg.Data())
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
@@ -249,7 +249,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		// error.
 		vmerr error
 	)
-	log.Warn("/// evm", "sender", msg.From(), "to", msg.To(), "block", st.evm.BlockNumber,
+	log.Info("/// evm", "sender", msg.From(), "to", msg.To(), "block", st.evm.BlockNumber,
 		"gas", st.gas)
 	if contractCreation {
 		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value)

@@ -90,14 +90,14 @@ func GetSigners(state vm.StateDB) []common.Address {
 	}
 	lenSlot := state.GetState(biosAddress, signersLenOffset)
 	len := new(big.Int).SetBytes(lenSlot[:]).Uint64()
-	log.Warn("/// GetSigners", "len", lenSlot)
 	signers := make([]common.Address, len)
 	for i := range signers {
 		addressSlot := state.GetState(
 			biosAddress,
-			common.BigToHash(new(big.Int).Add(signersArrayOffset, big.NewInt(int64(i)))))
+			common.BigToHash(new(big.Int).Add(
+				signersArrayOffset, big.NewInt(int64(i)))))
 		signers[i] = common.BytesToAddress(addressSlot[:])
-		log.Warn("/// GetSigners", "signer", signers[i])
+		log.Info("/// GetSigners", "signer", signers[i])
 	}
 	return signers
 }
@@ -132,7 +132,7 @@ func FetchLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64, rw b
 	limit := state.GetLimit(acc)
 	if limit == 0 {
 		limit = CalculateLimit(acc, state, blockGasLimit)
-		log.Warn("/// fetchLimit set", "limit", limit, "account", acc, "rw", rw,
+		log.Info("/// fetchLimit set", "limit", limit, "account", acc, "rw", rw,
 			"blockGasLimit", blockGasLimit)
 		if rw {
 			state.SetLimit(acc, limit)
@@ -141,7 +141,7 @@ func FetchLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64, rw b
 	return limit
 }
 
-// CheckFree checks that the current transaction is unmetered:
+// checkFree checks that the current transaction is unmetered:
 // 1. if it goes to the current Bios contract,
 // 2. if the Versioner contract does not point to any Bios contract yet.
 func checkFree(to *common.Address, state vm.StateDB) bool {

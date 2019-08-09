@@ -555,7 +555,7 @@ func (c *Papyrus) Prepare(chain consensus.ChainReader, header *types.Header) err
 	return nil
 }
 
-var blockRewardForOne = int64(float64(1.5e18 / 47))
+const blockRewardForOne = int64(float64(1.5e18 / 47))
 
 // Finalize implements consensus.Engine, ensuring no uncles are set, nor block
 // rewards given, and returns the final block.
@@ -564,9 +564,10 @@ func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, st
 	number := header.Number.Uint64()
 	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {
-		log.Warn("/// Finalize could not find snapshot for", "block", number, "err", err)
+		log.Warn("/// Finalize could not find snapshot for",
+			"block", number, "err", err)
 	} else {
-		log.Warn("/// Finalize update next signers for", "block", number)
+		log.Info("/// Finalize update next signers for", "block", number)
 		snap.Next = core.GetSigners(state)
 		if len(snap.Signers) != len(snap.Next) && len(snap.Next) != 0 {
 			next := make(map[common.Address]struct{})
@@ -574,7 +575,7 @@ func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, st
 				if _, ok := snap.Signers[authority]; ok {
 					next[authority] = struct{}{}
 				} else {
-					log.Warn("/// Finalize found new",
+					log.Info("/// Finalize found new",
 						"authority", authority)
 					header.Coinbase = authority
 					copy(header.Nonce[:], nonceAuthVote)
@@ -582,7 +583,7 @@ func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, st
 			}
 			for authority := range snap.Signers {
 				if _, ok := next[authority]; !ok {
-					log.Warn("/// Finalize found missing",
+					log.Info("/// Finalize found missing",
 						"authority", authority, "len", len(next),
 						"number", number)
 					header.Coinbase = authority
@@ -598,16 +599,16 @@ func (c *Papyrus) Finalize(chain consensus.ChainReader, header *types.Header, st
 			delta := core.CalculateLimit(acc, state, header.GasLimit)
 			if delta > 0 {
 				limit := state.GetLimit(acc)
-				log.Warn("/// Hourly update limits", "delta", delta,
+				log.Info("/// Hourly update limits", "delta", delta,
 					"limit", limit, "acc", acc)
 				var maxLimit = delta * core.RefreshsInAMeltingPeriod
 				if delta+limit < maxLimit {
 					state.AddLimit(acc, delta)
-					log.Warn("/// %%% Updated to",
+					log.Info("/// Updated to",
 						"limit", state.GetLimit(acc), "acc", acc)
 				} else if limit < maxLimit {
 					state.SetLimit(acc, maxLimit)
-					log.Warn("/// %%% Updated till",
+					log.Info("/// Updated till",
 						"limit", state.GetLimit(acc), "acc", acc)
 				}
 			}
