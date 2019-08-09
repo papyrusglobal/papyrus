@@ -58,9 +58,7 @@ var VersionerAddress = common.HexToAddress("0x0000000000000000000000000000000000
 
 func getBiosAddress(state vm.StateDB) common.Address {
 	data := state.GetState(VersionerAddress, common.Hash{})
-	var addr common.Address
-	addr.SetBytes(data[:])
-	return addr
+	return common.BytesToAddress(data[:])
 }
 
 // GetStaked returns currently staked value by the given address.
@@ -143,22 +141,15 @@ func FetchLimit(acc common.Address, state vm.StateDB, blockGasLimit uint64, rw b
 	return limit
 }
 
-func checkStaked(tx *types.Transaction, state *state.StateDB, header *types.Header, config *params.ChainConfig) bool {
+// CheckFree checks that the current transaction is unmetered:
+// 1. if it goes to the current Bios contract,
+// 2. if the Versioner contract does not point to any Bios contract yet.
+func checkFree(to *common.Address, state vm.StateDB) bool {
 	biosAddress := getBiosAddress(state)
 	if biosAddress == (common.Address{}) {
-		log.Warn("/// All tx allowed")
 		return true
 	}
-	if from := tx.To(); from != nil && *from == biosAddress {
-		log.Warn("/// Bios tx allowed")
-		return true
-	}
-	signer := types.MakeSigner(config, header.Number)
-	sender, _ := types.Sender(signer, tx)
-	limit := FetchLimit(sender, state, header.GasLimit, false)
-	unmetered := limit != 0
-	log.Warn("/// checkStaked", "block", header.Number, "unmetered", unmetered)
-	return unmetered
+	return to != nil && *to == biosAddress
 }
 
 // Process processes the state changes according to the Ethereum rules by running
@@ -184,7 +175,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		tx.SetUnmetered(checkStaked(tx, statedb, header, p.config))
+		tx.SetUnmetered(checkFree(tx.To(), statedb))
 		receipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err

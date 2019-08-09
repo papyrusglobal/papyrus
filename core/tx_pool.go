@@ -655,10 +655,10 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	/// if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 && !tx.Unmetered() {
+	/// if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
 	if !tx.Unmetered() &&
-		(pool.currentState.GetBalance(from).Cmp(tx.Value()) < 0 ||
-			pool.currentState.GetLimit(from) < tx.Gas()) {
+		pool.currentState.GetLimit(from) < tx.Gas() &&
+		(tx.To() == nil || pool.currentState.GetLimit(*tx.To()) < tx.Gas()) {
 		return ErrInsufficientFunds
 	}
 	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
@@ -686,7 +686,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		log.Trace("Discarding already known transaction", "hash", hash)
 		return false, fmt.Errorf("known transaction: %x", hash)
 	}
-	tx.SetUnmetered(checkStaked(tx, pool.currentState, pool.chain.CurrentBlock().Header(), pool.chainconfig))
+	tx.SetUnmetered(checkFree(tx.To(), pool.currentState))
 	// If the transaction fails basic validation, discard it
 	if err := pool.validateTx(tx, local); err != nil {
 		log.Trace("Discarding invalid transaction", "hash", hash, "err", err)

@@ -165,15 +165,7 @@ func (st *StateTransition) isCall() bool {
 // 2. if it goes to the current Bios contract,
 // 3. if the Versioner contract does not point to any Bios contract yet.
 func (st *StateTransition) isFree() bool {
-	biosAddress := getBiosAddress(st.state)
-	if biosAddress == (common.Address{}) {
-		return true
-	}
-	to := st.msg.To()
-	if to == nil {
-		return false
-	}
-	return *to == biosAddress
+	return checkFree(st.msg.To(), st.state)
 }
 
 func (st *StateTransition) whoPays() (common.Address, uint64) {
