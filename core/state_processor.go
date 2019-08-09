@@ -102,9 +102,9 @@ func GetSigners(state vm.StateDB) []common.Address {
 	return signers
 }
 
-const blockInterval = 6                                 // block mine every n seconds
-const BlocksInRefreshPeriod = /*60*/ 60 / blockInterval // blocks in an hour
-const RefreshsInAMeltingPeriod = 24 * 3                 // hours in 3 days
+const blockInterval = 1                               // block mine every n seconds
+const BlocksInRefreshPeriod = 60 * 60 / blockInterval // blocks in an hour
+const RefreshsInAMeltingPeriod = 24 * 3               // hours in 3 days
 
 var blocksInRefreshPeriodBig = big.NewInt(BlocksInRefreshPeriod)
 

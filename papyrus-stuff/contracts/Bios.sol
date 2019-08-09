@@ -11,15 +11,15 @@ import "./Ownable.sol";
 /// @title Main consensus and staking contract.
 /// @dev Based on QueueHelper that brings queue implementation code.
 contract Bios is BiosHeader, QueueHelper, Ownable {
-    uint constant kFreezeStake = 10 minutes; // time gap before withdrawing melted stake
-    uint constant kNewAuthorityPollTime = 5 minutes;
-    uint constant kBlacklistAuthorityPollTime = 5 minutes;
+    uint constant kFreezeStake = 3 days;     // time gap before withdrawing melted stake
+    uint constant kNewAuthorityPollTime = 7 days;
+    uint constant kBlacklistAuthorityPollTime = 7 days;
     uint constant kMinWinVotes = 3;          // threshold votes for new authority
     uint constant kSealerBets = 7;           // bets each participant has
-    uint constant kFreezeBet = 2 minutes;    // time gap between updating the authority bet
+    uint constant kFreezeBet = 1 days;       // time gap between updating the authority bet
 
     /// Public contract state.
-    uint constant public version = 2;        // contract code version
+    uint constant public version = 1;        // contract code version
     mapping(address=>Queue) public melting;  // melting stakes queues
     mapping(address=>address) public contractStakeOwner;
 
