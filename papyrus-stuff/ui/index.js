@@ -24,6 +24,7 @@ async function init() {
     show('no-web3-error');
     return;
   }
+  await window.ethereum.enable();
   // web3 = new Web3(new Web3.providers.HttpProvider(gatewayUrl));
   web3 = new Web3(window.web3.currentProvider);
   const accounts = await web3.eth.getAccounts();

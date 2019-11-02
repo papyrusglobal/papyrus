@@ -97,7 +97,6 @@ func GetSigners(state vm.StateDB) []common.Address {
 			common.BigToHash(new(big.Int).Add(
 				signersArrayOffset, big.NewInt(int64(i)))))
 		signers[i] = common.BytesToAddress(addressSlot[:])
-		log.Info("/// GetSigners", "signer", signers[i])
 	}
 	return signers
 }

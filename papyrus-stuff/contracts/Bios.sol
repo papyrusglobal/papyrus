@@ -12,11 +12,11 @@ import "./Ownable.sol";
 /// @dev Based on QueueHelper that brings queue implementation code.
 contract Bios is BiosHeader, QueueHelper, Ownable {
     uint constant kFreezeStake = 3 days;     // time gap before withdrawing melted stake
-    uint constant kNewAuthorityPollTime = 7 days;
-    uint constant kBlacklistAuthorityPollTime = 7 days;
+    uint constant kNewAuthorityPollTime = 14 days;
+    uint constant kBlacklistAuthorityPollTime = 5 days;
     uint constant kMinWinVotes = 3;          // threshold votes for new authority
     uint constant kSealerBets = 7;           // bets each participant has
-    uint constant kFreezeBet = 1 days;       // time gap between updating the authority bet
+    uint constant kFreezeBet = 14 days;      // time gap between updating the authority bet
 
     /// Public contract state.
     uint constant public version = 1;        // contract code version
@@ -88,7 +88,8 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
     }
 
     /// Unstake the specified value of money.
-    /// @dev The value is put to the melting queue and can be withdrawn after `kFreezeStake`.
+    /// @dev The value is put to the melting queue and can be withdrawn after
+    /// `kFreezeStake`.
     /// @param val value to unstake.
     function melt(uint224 val) public {
         require(val != 0 && stakes[msg.sender] >= val, "not enough stake");
@@ -97,7 +98,8 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
     }
 
     /// Unstake the specified value of money from the contract account.
-    /// @dev The value is put to the melting queue and can be withdrawn after `kFreezeStake`.
+    /// @dev The value is put to the melting queue and can be withdrawn after
+    /// `kFreezeStake`.
     /// @param contract_ the contract to unstake from.
     /// @param val value to unstake.
     function meltFromContract(address contract_, uint224 val) public {
@@ -241,11 +243,13 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
         while (i < addNewPollAddresses.length) {
             NewAuthorityPollStatus storage poll = addNewPoll[addNewPollAddresses[i]];
             if (poll.closeTime <= now) {
-                if (poll.votes >= kMinWinVotes || poll.votes == sealers.length) {
+                if ((poll.votes >= kMinWinVotes || poll.votes == sealers.length) &&
+                    authorityBlackList[addNewPollAddresses[i]] == false) {
                     addNewAuthority(addNewPollAddresses[i], poll.votes + 1);
                 }
                 delete(addNewPoll[addNewPollAddresses[i]]);
-                addNewPollAddresses[i] = addNewPollAddresses[addNewPollAddresses.length - 1];
+                addNewPollAddresses[i] =
+                    addNewPollAddresses[addNewPollAddresses.length - 1];
                 --addNewPollAddresses.length;
             } else {
                 ++i;
@@ -263,7 +267,8 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
                 }
                 delete(authorityBlacklistPoll[authorityBlacklistPollAddresses[i]]);
                 authorityBlacklistPollAddresses[i] =
-                    authorityBlacklistPollAddresses[authorityBlacklistPollAddresses.length - 1];
+                    authorityBlacklistPollAddresses[
+                        authorityBlacklistPollAddresses.length - 1];
                     --authorityBlacklistPollAddresses.length;
             } else {
                 ++i;
