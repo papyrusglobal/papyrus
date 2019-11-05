@@ -1,0 +1,37 @@
+Papyrus Network User Agreement
+Definitions
+Papyrus Network User Agreement: This document (PNUA)
+
+Chain ID: 32328
+
+BIOS Contract: An Papyrus Network smart contract with a dynamic permissions structure, which defines network governance procedures.
+
+User: Any person or organization of persons who maintain(s) direct or indirect ownership of an Papyrus Network address, or property connected to an Papyrus Network address.
+
+Ownership: Direct or indirect access to an Papyrus Network address through one or more valid permissions checks. Ownership may be partially shared between Users through the use of multi-signature permissions.
+
+Authority Nodes: Users who have created new blocks in Papyrus Network.
+
+On-Chain: Any transaction, smart contract, or Ricardian contract which is located within a block that is irreversible and appended to the Papyrus Network.
+
+Papyrus Network-based Property: Anything that requires a valid permission in order to directly manipulate, alter, transfer, influence, or otherwise effect on the Papyrus Network
+
+Call: To submit an action to the Papyrus Network.
+
+Authorizations & Permissions: Permissions are arbitrary names used to define the requirements for a transaction sent on behalf of that permission. Permissions can be assigned for authority over specific contract actions.
+
+Article I -  User Acknowledgement of Risks If User loses access to their Papyrus Network address on chain_id and has not taken appropriate measures to secure access to their Papyrus Network address by other means, the User acknowledges and agrees that that Papyrus Network address will become inaccessible. Users acknowledge that the User has an adequate understanding of the risks, usage and intricacies of cryptographic tokens and blockchain-based software. The User acknowledges and agrees that the User is using the Papyrus Network at their sole risk.
+
+Article II - Consent of the PNUA The nature of the Papyrus Network User Agreement is such that it serves as a description of the current Papyrus Network Mainnet governance functions that are in place. These functions, enforced by code, do not require the consent of Users as these functions are inherent and systemic to the Papyrus Network Mainnet itself.
+
+Article III - Governing Documents Current version of PNUA is referred by its SHA256 hash in Papyrus Network BIOS Contract and modifications to the PNUA may be made using BIOS Contract.
+
+Article IV - Native Unit of Value The native unit of value on Papyrus Network chain_id shall be the PPR token as defined by Papyrus Network software.
+
+Article V - Maintaining the Papyrus Network Papyrus Network code is published in open GitHub repositories and open source developers community is supposed to maintain the active blockchain codebase which includes, but is not limited to, the implementation of all modifications of all features, optimizations, and upgrades: present and future.
+
+Article VI - No Fiduciary No User shall have a fiduciary purpose to support the value of the PPR token. No User can authorize anyone to hold assets, borrow, speak, contract on behalf of other Papyrus Network Users or the Papyrus Network chain_id collectively. Papyrus Network shall have no owners, managers, or fiduciaries.
+
+Article VII - User Security All items pertaining to personal account security, including but not limited to the safekeeping of private keys, is solely the responsibility of the User to secure.
+
+Article VIII - Authority Nodes Limited Liability The User acknowledges and agrees that, to the fullest extent permitted by any applicable law, this disclaimer of liability applies to any and all damages or injury whatsoever caused by or related to risks of, use of, or inability to use, the PPR token or the Papyrus Network under any cause of action whatsoever of any kind in any jurisdiction, including, without limitation, actions for breach of warranty, breach of contract or tort (including negligence) and that Authority Nodes shall not be liable for any indirect, incidental, special, exemplary or consequential damages, including for loss of profits, goodwill or data.
