@@ -17,11 +17,17 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
     uint constant kMinWinVotes = 3;          // threshold votes for new authority
     uint constant kSealerBets = 7;           // bets each participant has
     uint constant kFreezeBet = 14 days;      // time gap between updating the authority bet
+    uint constant public version = 1;        // contract code version
 
     /// Public contract state.
-    uint constant public version = 1;        // contract code version
     mapping(address=>Queue) public melting;  // melting stakes queues
     mapping(address=>address) public contractStakeOwner;
+    mapping(address=>string) public authorityUrls;
+
+    /// Currently active Papyrus network user agreement.
+    /// @dev sha256sum PNUA
+    uint public pnuaSha256 =
+        0x5c366dc1ffa995d93fae49888f1283d5e8429a372757f43af315a79e84cd1583;
 
     /// Poll status for the new authority.
     struct NewAuthorityPollStatus {
@@ -262,7 +268,7 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
             AuthorityBlacklistPollStatus storage poll =
                 authorityBlacklistPoll[candidate];
             if (poll.closeTime <= now) {
-                if (poll.votes >= sealers.length / 2) {
+                if (poll.votes > sealers.length / 2) {
                     blacklistAuthority(candidate);
                 }
                 delete(authorityBlacklistPoll[authorityBlacklistPollAddresses[i]]);
@@ -277,10 +283,18 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
     }
 
     /// @dev debug function
-    function upgrade(address payable neo) public {
-        require(authorityStates[msg.sender].votes != 0, "must be authority");
+    function upgrade(address payable neo) public onlyOwner {
         Versioner(0x0000000000000000000000000000000000000022).upgrade(neo);
         selfdestruct(neo);
+    }
+
+    function updateAuthorityUrl(string memory updated) public {
+        require(authorityStates[msg.sender].votes != 0, "must be authority");
+        authorityUrls[msg.sender] = updated;
+    }
+
+    function ownerUpdatePnua(uint updated) public onlyOwner {
+        pnuaSha256 = updated;
     }
 
     function ownerAddNewAuthority(address candidate) public onlyOwner {
