@@ -11,6 +11,10 @@ import "./Ownable.sol";
 /// @title Main consensus and staking contract.
 /// @dev Based on QueueHelper that brings queue implementation code.
 contract Bios is BiosHeader, QueueHelper, Ownable {
+    event AuthorityAdded(address indexed candidate);
+    event AuthorityBlacklisted(address indexed candidate);
+    event AuthorityBlacklistRemoved(address indexed candidate);
+
     uint constant kFreezeStake = 3 days;     // time gap before withdrawing melted stake
     uint constant kNewAuthorityPollTime = 14 days;
     uint constant kBlacklistAuthorityPollTime = 5 days;
@@ -307,6 +311,11 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
 
     function ownerRemoveFromBlacklist(address candidate) public onlyOwner {
         authorityBlackList[candidate] = false;
+        emit AuthorityBlacklistRemoved(candidate);
+    }
+
+    function ownerUpdateBlockReward(uint updated) public onlyOwner {
+        blockReward = updated;
     }
 
     function addNewAuthority(address authority, uint votes) private {
@@ -315,10 +324,12 @@ contract Bios is BiosHeader, QueueHelper, Ownable {
         AuthorityState memory sealer;
         sealer.votes = votes;
         authorityStates[authority] = sealer;
+        emit AuthorityAdded(authority);
     }
 
     function blacklistAuthority(address candidate) private {
         authorityBlackList[candidate] = true;
+        emit AuthorityBlacklisted(candidate);
         if (authorityStates[candidate].votes != 0) {
             delete(authorityStates[candidate]);
             for (uint j = 0; j < sealers.length; ++j) {
